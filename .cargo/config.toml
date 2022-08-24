@@ -1,0 +1,30 @@
+[net]
+git-fetch-with-cli = true
+
+[target.'cfg(all())']
+rustflags = [
+    "-Wclippy::all",                            # correctness, sus, style, complexity, perf
+    "-Wclippy::pedantic",
+    "-Wclippy::cargo",
+    "-Wclippy::restriction",
+    "-Aclippy::missing_docs_in_private_items",  # pub docs should be fine
+    "-Aclippy::as_conversions",                 # not-recommended, covered by other lints
+    "-Aclippy::missing_inline_in_public_items", # we're using lto, so obviated
+    "-Aclippy::cargo_common_metadata",          # these are internal crates
+    "-Aclippy::exhaustive_structs",             # ..
+    "-Aclippy::exhaustive_enums",               # ..
+    "-Aclippy::implicit_return",                # non-std style
+    "-Aclippy::else-if-without-else",           #  ..
+    "-Aclippy::self-named-module-files",        # ..
+    "-Aclippy::default_trait_access",           # ..
+    "-Aclippy::pattern_type_mismatch",          #  ..
+    "-Aclippy::mod_module_files",               #  ..
+    "-Aclippy::if_then_some_else_none",         # ..
+    "-Aclippy::str_to_string",                  # rustc suggests `.to_string()`, so non-std style
+    "-Aclippy::shadow_reuse",                   # I feel this can actually be great
+    "-Aclippy::multiple_crate_versions",        # This isnt something we have much control over
+    "-Aclippy::must_use_candidate",             # really noisy
+    "-Aclippy::default_numeric_fallback",       # should be allowed with '0'.
+    "-Aclippy::module_name_repetitions",        # I found this impractical
+    "-Aclippy::implicit_hasher",                # Adds a lot of complication only a bit of generalization
+]
