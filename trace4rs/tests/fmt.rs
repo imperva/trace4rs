@@ -19,7 +19,7 @@ fn test_custom_fmt() {
     let conf: Config = serde_json::from_value(json!( {
         "root": {
             "format": {
-                "custom": "{T} {t}: {l} {f}",
+                "custom": "{T} {t}: {l} {f} --",
             },
             "appenders": ["file1"],
             "level" : "TRACE"
@@ -30,7 +30,22 @@ fn test_custom_fmt() {
                 "path": "file1.log"
             },
         },
-        "loggers": {}
+        "loggers": {
+            "one": {
+                "appenders": ["file1"],
+                "format": {
+                    "custom": "{T} {t}: {l} {m} --",
+                },
+                "level": "TRACE"
+            },
+            "two": {
+                "appenders": ["file1"],
+                "format": {
+                    "custom": "{T} {t}: {l} {f} {foo}",
+                },
+                "level": "TRACE"
+            }
+        }
     }))
     .unwrap();
 
@@ -45,4 +60,12 @@ fn test_custom_fmt() {
     let f1_content = fs::read_to_string("./file1.log").unwrap();
     println!("{f1_content}");
     assert!(f1_content.contains("root logger"));
+
+    log::info!(target: "one", "logging to one");
+    log::info!(target: "two", "logging to two");
+    sleep(Duration::from_millis(100));
+    let f1_content = fs::read_to_string("./file1.log").unwrap();
+    println!("{f1_content}");
+    assert!(f1_content.contains("logging to one --"));
+    assert!(f1_content.contains("INFO two: logging to two"));
 }

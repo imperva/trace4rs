@@ -150,7 +150,18 @@ impl From<ConfigFormat> for EventFormatter {
         match f {
             ConfigFormat::Normal => Self::Normal,
             ConfigFormat::MessageOnly => Self::MessageOnly,
-            ConfigFormat::Custom(s) => Self::Custom(CustomFormatter::new(s)),
+            ConfigFormat::Custom(s) => {
+                match CustomFormatter::new(s) {
+                    Ok(c) => Self::Custom(c),
+                    #[allow(clippy::print_stderr)] // necessary error surfacing
+                    Err(e) => {
+                        eprintln!(
+                            "Error configuring trace4rs formatting: {e}, using default formatter"
+                        );
+                        Self::Normal
+                    },
+                }
+            },
         }
     }
 }
@@ -165,7 +176,7 @@ impl FormatEvent<SpanBroker, DefaultFields> for EventFormatter {
         match self {
             Self::Custom(fmtr) => fmtr.format_event(ctx, writer, event),
             Self::MessageOnly => {
-                let mut vs = SingleFieldVisitor::new(writer, MESSAGE_FIELD_NAME);
+                let mut vs = SingleFieldVisitor::new(true, writer, MESSAGE_FIELD_NAME);
                 event.record(&mut vs);
                 Ok(())
             },
@@ -199,8 +210,12 @@ struct CustomValueWriter<'ctx, 'evt> {
 }
 impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
     fn format_timestamp(mut writer: format::Writer<'_>) -> fmt::Result {
-        let t = tracing_subscriber::fmt::time::UtcTime::rfc_3339();
-        t.format_time(&mut writer)
+        if let Ok(t) = tracing_subscriber::fmt::time::OffsetTime::local_rfc_3339() {
+            t.format_time(&mut writer)
+        } else {
+            let t = tracing_subscriber::fmt::time::UtcTime::rfc_3339();
+            t.format_time(&mut writer)
+        }
     }
 }
 impl<'ctx, 'evt> fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
@@ -215,11 +230,8 @@ impl<'ctx, 'evt> fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
         } else if field == fields::TARGET {
             write!(writer, "{}", meta.target())?;
         } else if field == fields::MESSAGE {
-            for f in self.event.fields() {
-                if f.name() == MESSAGE_FIELD_NAME {
-                    write!(writer, "{}", f)?;
-                }
-            }
+            let mut vs = SingleFieldVisitor::new(false, writer.by_ref(), MESSAGE_FIELD_NAME);
+            self.event.record(&mut vs);
         } else if field == fields::FIELDS {
             self.ctx.format_fields(writer, self.event)?;
         } else if field == fields::LEVEL {
@@ -236,10 +248,10 @@ pub struct CustomFormatter {
 unsafe impl Sync for CustomFormatter {}
 unsafe impl Send for CustomFormatter {}
 impl CustomFormatter {
-    fn new(fmt_str: impl Into<Cow<'static, str>>) -> Self {
-        let fmtr = fmtorp::Fmtr::new(fmt_str, &fields::FIELD_SET);
+    fn new(fmt_str: impl Into<Cow<'static, str>>) -> Result<Self, fmtorp::Error> {
+        let fmtr = fmtorp::Fmtr::new(fmt_str, &fields::FIELD_SET)?;
 
-        Self { fmtr }
+        Ok(Self { fmtr })
     }
 
     fn format_event(
@@ -256,15 +268,18 @@ impl CustomFormatter {
 const MESSAGE_FIELD_NAME: &str = "message";
 
 struct SingleFieldVisitor<'w> {
+    newline:    bool,
     writer:     tracing_subscriber::fmt::format::Writer<'w>,
     field_name: Cow<'static, str>,
 }
 impl<'w> SingleFieldVisitor<'w> {
     fn new(
+        newline: bool,
         writer: tracing_subscriber::fmt::format::Writer<'w>,
         field_name: impl Into<Cow<'static, str>>,
     ) -> Self {
         Self {
+            newline,
             writer,
             field_name: field_name.into(),
         }
@@ -277,7 +292,11 @@ impl<'w> Visit for SingleFieldVisitor<'w> {
         // eas: bummer to hardcode this but thats how tracing does it
         #[allow(unused_must_use, clippy::use_debug)]
         if field.name() == self.field_name {
-            writeln!(self.writer, "{:?}", value);
+            if self.newline {
+                writeln!(self.writer, "{:?}", value);
+            } else {
+                write!(self.writer, "{:?}", value);
+            }
         }
     }
 }
