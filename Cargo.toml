@@ -1,2 +1,2 @@
 [workspace]
-members = ["trace4rs", "config"]
+members = ["trace4rs", "config", "fmtorp"]
