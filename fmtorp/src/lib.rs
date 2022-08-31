@@ -8,9 +8,9 @@ use std::{
 
 use tracing_subscriber::fmt::format;
 
-pub struct Fmtr<'s> {
+pub struct Fmtr<'fmtstr> {
     /// The owned or static borrowed format string.
-    fmt_str:      Cow<'s, str>,
+    fmt_str:      Cow<'fmtstr, str>,
     /// The ranges indexing `fmt_str` which 1-1 index `ordered_fields`.
     field_ranges: Vec<RangeInclusive<usize>>,
     /// The names of fields indexed identically to field_ranges.
@@ -65,10 +65,15 @@ impl<'fmtstr> Fmtr<'fmtstr> {
         }
     }
 
-    pub fn field_from_id<'this>(&'this self, i: usize) -> Option<&'static str> {
-        self.field_names.get(i).map(|f| *f)
+    pub fn field_from_id(&self, i: usize) -> Option<&'static str> {
+        self.field_names.get(i).copied()
     }
 
+    /// # Errors
+    /// If we fail to format the value a fmt Err will be returned
+    ///
+    /// # Panics
+    /// Panics should only happen on bugs.
     pub fn write<'writer>(
         &self,
         mut writer: format::Writer<'writer>,
@@ -93,9 +98,7 @@ impl<'fmtstr> Fmtr<'fmtstr> {
 }
 
 pub trait FieldValueWriter {
-    fn write_value<'writer>(
-        &self,
-        writer: format::Writer<'writer>,
-        field: &'static str,
-    ) -> fmt::Result;
+    /// # Errors
+    /// If we fail to format the value a fmt Err will be returned
+    fn write_value(&self, writer: format::Writer<'_>, field: &'static str) -> fmt::Result;
 }

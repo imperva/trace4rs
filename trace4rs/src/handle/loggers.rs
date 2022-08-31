@@ -198,30 +198,26 @@ struct CustomValueWriter<'ctx, 'evt> {
     event: &'evt Event<'evt>,
 }
 impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
-    fn format_timestamp<'writer>(&self, mut writer: format::Writer<'writer>) -> fmt::Result {
+    fn format_timestamp(mut writer: format::Writer<'_>) -> fmt::Result {
         let t = tracing_subscriber::fmt::time::UtcTime::rfc_3339();
         t.format_time(&mut writer)
     }
 }
 impl<'ctx, 'evt> fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
-    fn write_value<'writer>(
-        &self,
-        mut writer: format::Writer<'writer>,
-        field: &'static str,
-    ) -> fmt::Result {
+    fn write_value(&self, mut writer: format::Writer<'_>, field: &'static str) -> fmt::Result {
         let normalized_meta = self.event.normalized_metadata();
         let meta = normalized_meta
             .as_ref()
             .unwrap_or_else(|| self.event.metadata());
 
         if field == fields::TIMESTAMP {
-            self.format_timestamp(writer)?;
+            Self::format_timestamp(writer)?;
         } else if field == fields::TARGET {
             write!(writer, "{}", meta.target())?;
         } else if field == fields::MESSAGE {
             for f in self.event.fields() {
                 if f.name() == MESSAGE_FIELD_NAME {
-                    write!(writer, "{}", f.to_string())?;
+                    write!(writer, "{}", f)?;
                 }
             }
         } else if field == fields::FIELDS {
@@ -232,7 +228,7 @@ impl<'ctx, 'evt> fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
         Ok(())
     }
 }
-/// EAS: Follow strat from NORMAL_FMT
+/// EAS: Follow strat from `NORMAL_FMT`
 /// move Message only  and this to formatter.rs and utcoffsettime
 pub struct CustomFormatter {
     fmtr: fmtorp::Fmtr<'static>,
@@ -257,7 +253,7 @@ impl CustomFormatter {
     }
 }
 
-const MESSAGE_FIELD_NAME: &'static str = "message";
+const MESSAGE_FIELD_NAME: &str = "message";
 
 struct SingleFieldVisitor<'w> {
     writer:     tracing_subscriber::fmt::format::Writer<'w>,
