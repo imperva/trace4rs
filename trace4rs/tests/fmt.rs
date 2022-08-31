@@ -19,7 +19,7 @@ fn test_custom_fmt() {
     let conf: Config = serde_json::from_value(json!( {
         "root": {
             "format": {
-                "custom": "{t} {T}: {l} {f}",
+                "custom": "{T} {t}: {l} {f}",
             },
             "appenders": ["file1"],
             "level" : "TRACE"

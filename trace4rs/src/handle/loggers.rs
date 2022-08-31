@@ -5,7 +5,6 @@ use std::{
     io,
 };
 
-use fmtorp::Fmtr;
 use once_cell::sync::Lazy;
 use tracing::{
     field::Visit,
@@ -17,6 +16,7 @@ use tracing_log::NormalizeEvent;
 use tracing_subscriber::{
     fmt::{
         format::{
+            self,
             DefaultFields,
             Format,
             Full,
@@ -174,49 +174,59 @@ impl FormatEvent<SpanBroker, DefaultFields> for EventFormatter {
     }
 }
 mod fields {
+    use std::collections::HashSet;
+
     pub const TIMESTAMP: &str = "T";
     pub const TARGET: &str = "t";
     pub const MESSAGE: &str = "m";
     pub const FIELDS: &str = "f";
     pub const LEVEL: &str = "l";
+    pub static FIELD_SET: once_cell::sync::Lazy<HashSet<&'static str>> =
+        once_cell::sync::Lazy::new(|| {
+            let mut set = HashSet::new();
+            set.insert(TIMESTAMP);
+            set.insert(TARGET);
+            set.insert(MESSAGE);
+            set.insert(FIELDS);
+            set.insert(LEVEL);
+            set
+        });
 }
 
 struct CustomValueWriter<'ctx, 'evt> {
-    fmtr:  Fmtr<'static>,
     ctx:   &'ctx FmtContext<'ctx, SpanBroker, DefaultFields>,
     event: &'evt Event<'evt>,
 }
 impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
-    fn write(&mut self, mut writer: Writer<'_>) -> fmt::Result {
-        self.fmtr.write(&mut writer, self)
-    }
-
-    const fn get_field_id(&self, s: &str) -> usize {
-        self.fmtr.field_from_name(s)
+    fn format_timestamp<'writer>(&self, mut writer: format::Writer<'writer>) -> fmt::Result {
+        let t = tracing_subscriber::fmt::time::UtcTime::rfc_3339();
+        t.format_time(&mut writer)
     }
 }
 impl<'ctx, 'evt> fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
-    fn write_value(&self, writer: &mut impl fmt::Write, field: fmtorp::Field) -> fmt::Result {
+    fn write_value<'writer>(
+        &self,
+        mut writer: format::Writer<'writer>,
+        field: &'static str,
+    ) -> fmt::Result {
         let normalized_meta = self.event.normalized_metadata();
         let meta = normalized_meta
             .as_ref()
             .unwrap_or_else(|| self.event.metadata());
 
-        let id = field.id();
-
-        if id == self.get_field_id(fields::TIMESTAMP) {
-            self.format_timestamp(&mut writer)?;
-        } else if id == self.get_field_id(fields::TARGET) {
+        if field == fields::TIMESTAMP {
+            self.format_timestamp(writer)?;
+        } else if field == fields::TARGET {
             write!(writer, "{}", meta.target())?;
-        } else if id == self.get_field_id(fields::MESSAGE) {
+        } else if field == fields::MESSAGE {
             for f in self.event.fields() {
                 if f.name() == MESSAGE_FIELD_NAME {
                     write!(writer, "{}", f.to_string())?;
                 }
             }
-        } else if id == self.get_field_id(fields::FIELDS) {
-            self.ctx.format_fields(writer.by_ref(), self.event)?;
-        } else if id == self.get_field_id(fields::LEVEL) {
+        } else if field == fields::FIELDS {
+            self.ctx.format_fields(writer, self.event)?;
+        } else if field == fields::LEVEL {
             write!(writer, "{}", meta.level())?;
         }
         Ok(())
@@ -227,9 +237,11 @@ impl<'ctx, 'evt> fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
 pub struct CustomFormatter {
     fmtr: fmtorp::Fmtr<'static>,
 }
+unsafe impl Sync for CustomFormatter {}
+unsafe impl Send for CustomFormatter {}
 impl CustomFormatter {
     fn new(fmt_str: impl Into<Cow<'static, str>>) -> Self {
-        let fmtr = fmtorp::Fmtr::new(fmt_str);
+        let fmtr = fmtorp::Fmtr::new(fmt_str, &fields::FIELD_SET);
 
         Self { fmtr }
     }
@@ -237,24 +249,11 @@ impl CustomFormatter {
     fn format_event(
         &self,
         ctx: &FmtContext<'_, SpanBroker, DefaultFields>,
-        mut writer: Writer<'_>,
+        writer: Writer<'_>,
         event: &Event<'_>,
     ) -> fmt::Result {
-        let value_writer = CustomValueWriter {
-            fmtr: &self.fmtr,
-            ctx,
-            event,
-        };
-        value_writer.write(writer)
-    }
-
-    #[inline]
-    fn format_timestamp(&self, writer: &mut Writer<'_>) -> fmt::Result {
-        let t = tracing_subscriber::fmt::time::SystemTime;
-        if let Err(_) = t.format_time(writer) {
-            writer.write_str("<unknown time>")?;
-        }
-        Ok(())
+        let value_writer = CustomValueWriter { ctx, event };
+        self.fmtr.write(writer, &value_writer)
     }
 }
 
