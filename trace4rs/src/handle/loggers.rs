@@ -139,11 +139,13 @@ impl Layer<SpanBroker> for Logger {
     }
 }
 
+#[derive(Debug)]
 pub enum EventFormatter {
     Normal,
     MessageOnly,
     Custom(CustomFormatter),
 }
+
 impl Default for EventFormatter {
     fn default() -> Self {
         Self::Normal
@@ -247,6 +249,7 @@ impl<'ctx, 'evt> fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
 }
 /// EAS: Follow strat from `NORMAL_FMT`
 /// move Message only  and this to formatter.rs and utcoffsettime
+#[derive(Debug)]
 pub struct CustomFormatter {
     fmtr: fmtorp::Fmtr<'static>,
 }

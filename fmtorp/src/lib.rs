@@ -20,6 +20,7 @@ pub enum Error {
     EmptyField,
 }
 
+#[derive(Debug)]
 pub struct Fmtr<'fmtstr> {
     /// The owned or static borrowed format string.
     fmt_str:      Cow<'fmtstr, str>,
