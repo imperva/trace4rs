@@ -144,6 +144,11 @@ pub enum EventFormatter {
     MessageOnly,
     Custom(CustomFormatter),
 }
+impl Default for EventFormatter {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
 
 impl From<ConfigFormat> for EventFormatter {
     fn from(f: ConfigFormat) -> Self {
@@ -158,7 +163,7 @@ impl From<ConfigFormat> for EventFormatter {
                         eprintln!(
                             "Error configuring trace4rs formatting: {e}, using default formatter"
                         );
-                        Self::Normal
+                        Self::default()
                     },
                 }
             },
