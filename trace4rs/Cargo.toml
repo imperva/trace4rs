@@ -28,6 +28,7 @@ tracing-log = "0.1.2"
 time = { version = "0.3.5", features = ["formatting", "macros"] }
 path-absolutize = "3.0.11"
 trace4rs_config = {path = "../config"}
+fmtorp = { version = "0.1.0", path = "../fmtorp" }
 
 [dev-dependencies]
 criterion = "0.3.5"

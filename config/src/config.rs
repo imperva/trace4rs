@@ -154,7 +154,7 @@ pub struct Logger {
     pub format:    Format,
 }
 
-#[derive(PartialEq, Eq, Copy, Clone, Debug, SmartDefault)]
+#[derive(PartialEq, Eq, Clone, Debug, SmartDefault)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -165,6 +165,7 @@ pub enum Format {
     #[default]
     Normal,
     MessageOnly,
+    Custom(String),
 }
 impl Format {
     #[cfg(feature = "serde")]

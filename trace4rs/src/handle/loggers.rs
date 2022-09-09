@@ -1,5 +1,9 @@
 #![allow(clippy::single_char_lifetime_names)]
-use std::io;
+use core::fmt;
+use std::{
+    borrow::Cow,
+    io,
+};
 
 use once_cell::sync::Lazy;
 use tracing::{
@@ -8,9 +12,11 @@ use tracing::{
     Event,
     Metadata,
 };
+use tracing_log::NormalizeEvent;
 use tracing_subscriber::{
     fmt::{
         format::{
+            self,
             DefaultFields,
             Format,
             Full,
@@ -21,7 +27,9 @@ use tracing_subscriber::{
             BoxMakeWriter,
             MakeWriterExt,
         },
+        FmtContext,
         FormatEvent,
+        FormatFields,
         Layer as FmtLayer,
     },
     layer::{
@@ -131,9 +139,17 @@ impl Layer<SpanBroker> for Logger {
     }
 }
 
+#[derive(Debug)]
 pub enum EventFormatter {
     Normal,
     MessageOnly,
+    Custom(CustomFormatter),
+}
+
+impl Default for EventFormatter {
+    fn default() -> Self {
+        Self::Normal
+    }
 }
 
 impl From<ConfigFormat> for EventFormatter {
@@ -141,6 +157,18 @@ impl From<ConfigFormat> for EventFormatter {
         match f {
             ConfigFormat::Normal => Self::Normal,
             ConfigFormat::MessageOnly => Self::MessageOnly,
+            ConfigFormat::Custom(s) => {
+                match CustomFormatter::new(s) {
+                    Ok(c) => Self::Custom(c),
+                    #[allow(clippy::print_stderr)] // necessary error surfacing
+                    Err(e) => {
+                        eprintln!(
+                            "Error configuring trace4rs formatting: {e}, using default formatter"
+                        );
+                        Self::default()
+                    },
+                }
+            },
         }
     }
 }
@@ -153,8 +181,9 @@ impl FormatEvent<SpanBroker, DefaultFields> for EventFormatter {
         event: &Event<'_>,
     ) -> std::fmt::Result {
         match self {
+            Self::Custom(fmtr) => fmtr.format_event(ctx, writer, event),
             Self::MessageOnly => {
-                let mut vs = MessageOnlyVisitor::new(writer);
+                let mut vs = SingleFieldVisitor::new(true, writer, MESSAGE_FIELD_NAME);
                 event.record(&mut vs);
                 Ok(())
             },
@@ -162,23 +191,120 @@ impl FormatEvent<SpanBroker, DefaultFields> for EventFormatter {
         }
     }
 }
+mod fields {
+    use std::collections::HashSet;
 
-struct MessageOnlyVisitor<'w> {
-    writer: tracing_subscriber::fmt::format::Writer<'w>,
+    pub const TIMESTAMP: &str = "T";
+    pub const TARGET: &str = "t";
+    pub const MESSAGE: &str = "m";
+    pub const FIELDS: &str = "f";
+    pub const LEVEL: &str = "l";
+    pub static FIELD_SET: once_cell::sync::Lazy<HashSet<&'static str>> =
+        once_cell::sync::Lazy::new(|| {
+            let mut set = HashSet::new();
+            set.insert(TIMESTAMP);
+            set.insert(TARGET);
+            set.insert(MESSAGE);
+            set.insert(FIELDS);
+            set.insert(LEVEL);
+            set
+        });
 }
-impl<'w> MessageOnlyVisitor<'w> {
-    fn new(writer: tracing_subscriber::fmt::format::Writer<'w>) -> Self {
-        Self { writer }
+
+struct CustomValueWriter<'ctx, 'evt> {
+    ctx:   &'ctx FmtContext<'ctx, SpanBroker, DefaultFields>,
+    event: &'evt Event<'evt>,
+}
+impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
+    fn format_timestamp(mut writer: format::Writer<'_>) -> fmt::Result {
+        if let Ok(t) = tracing_subscriber::fmt::time::OffsetTime::local_rfc_3339() {
+            t.format_time(&mut writer)
+        } else {
+            let t = tracing_subscriber::fmt::time::UtcTime::rfc_3339();
+            t.format_time(&mut writer)
+        }
     }
 }
-impl<'w> Visit for MessageOnlyVisitor<'w> {
+impl<'ctx, 'evt> fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
+    fn write_value(&self, mut writer: format::Writer<'_>, field: &'static str) -> fmt::Result {
+        let normalized_meta = self.event.normalized_metadata();
+        let meta = normalized_meta
+            .as_ref()
+            .unwrap_or_else(|| self.event.metadata());
+
+        if field == fields::TIMESTAMP {
+            Self::format_timestamp(writer)?;
+        } else if field == fields::TARGET {
+            write!(writer, "{}", meta.target())?;
+        } else if field == fields::MESSAGE {
+            let mut vs = SingleFieldVisitor::new(false, writer.by_ref(), MESSAGE_FIELD_NAME);
+            self.event.record(&mut vs);
+        } else if field == fields::FIELDS {
+            self.ctx.format_fields(writer, self.event)?;
+        } else if field == fields::LEVEL {
+            write!(writer, "{}", meta.level())?;
+        }
+        Ok(())
+    }
+}
+/// EAS: Follow strat from `NORMAL_FMT`
+/// move Message only  and this to formatter.rs and utcoffsettime
+#[derive(Debug)]
+pub struct CustomFormatter {
+    fmtr: fmtorp::Fmtr<'static>,
+}
+unsafe impl Sync for CustomFormatter {}
+unsafe impl Send for CustomFormatter {}
+impl CustomFormatter {
+    fn new(fmt_str: impl Into<Cow<'static, str>>) -> Result<Self, fmtorp::Error> {
+        let fmtr = fmtorp::Fmtr::new(fmt_str, &fields::FIELD_SET)?;
+
+        Ok(Self { fmtr })
+    }
+
+    fn format_event(
+        &self,
+        ctx: &FmtContext<'_, SpanBroker, DefaultFields>,
+        writer: Writer<'_>,
+        event: &Event<'_>,
+    ) -> fmt::Result {
+        let value_writer = CustomValueWriter { ctx, event };
+        self.fmtr.write(writer, &value_writer)
+    }
+}
+
+const MESSAGE_FIELD_NAME: &str = "message";
+
+struct SingleFieldVisitor<'w> {
+    newline:    bool,
+    writer:     tracing_subscriber::fmt::format::Writer<'w>,
+    field_name: Cow<'static, str>,
+}
+impl<'w> SingleFieldVisitor<'w> {
+    fn new(
+        newline: bool,
+        writer: tracing_subscriber::fmt::format::Writer<'w>,
+        field_name: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        Self {
+            newline,
+            writer,
+            field_name: field_name.into(),
+        }
+    }
+}
+impl<'w> Visit for SingleFieldVisitor<'w> {
     // todo(eas): Might be good to come back to this, looks like this is getting
     // called directly by tracing-subscriber on accident.
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         // eas: bummer to hardcode this but thats how tracing does it
         #[allow(unused_must_use, clippy::use_debug)]
-        if field.name() == "message" {
-            writeln!(self.writer, "{:?}", value);
+        if field.name() == self.field_name {
+            if self.newline {
+                writeln!(self.writer, "{:?}", value);
+            } else {
+                write!(self.writer, "{:?}", value);
+            }
         }
     }
 }

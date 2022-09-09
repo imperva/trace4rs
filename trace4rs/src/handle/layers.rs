@@ -91,7 +91,7 @@ impl Layers {
                     Some(targ.clone()),
                     lg.appenders.iter(),
                     &appenders,
-                    lg.format.into(),
+                    lg.format.clone().into(),
                 )
             })
             .collect();
@@ -102,7 +102,7 @@ impl Layers {
             None,
             config.default.appenders.iter(),
             &appenders,
-            config.default.format.into(),
+            config.default.format.clone().into(),
         );
 
         Ok(Layers::new(default, layers, appenders))
