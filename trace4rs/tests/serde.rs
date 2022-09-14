@@ -1,3 +1,4 @@
+#![cfg(feature = "serde")]
 use std::{
     convert::TryInto,
     env,

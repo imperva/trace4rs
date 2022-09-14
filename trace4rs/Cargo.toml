@@ -7,7 +7,8 @@ keywords = ["tracing", "logging", "log4rs"]
 authors = ["Evan Simmons", "Everett Pompeii", "Richard Meester"]
 
 [features]
-tracing-macros = []
+tracing-macros = [] # internal, for benches
+serde = ["trace4rs_config/serde"]
 
 [dependencies]
 literally = "0.1.3"
