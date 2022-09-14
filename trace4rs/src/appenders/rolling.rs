@@ -263,7 +263,7 @@ impl RollingFile {
     /// pattern: "{filename}.{}".
     ///
     /// ```ignore
-    ///
+    /// 
     /// make_qualified_pattern(Path::from("./foo/bar.log"), None); // -> "./foo/bar.log.{}"
     /// make_qualified_pattern(Path::from("./foo/bar.log"), Some("bar_roll.{}")); // -> "./foo/bar_roll.{}"
     /// ```
