@@ -1,5 +1,5 @@
 [package]
-name = "trace4rs_config"
+name = "trace4rs-config"
 version = "0.1.0"
 edition = "2021"
 description = "trace4rs configuration"

@@ -8,7 +8,7 @@ authors = ["Evan Simmons", "Everett Pompeii", "Richard Meester"]
 
 [features]
 tracing-macros = [] # internal, for benches
-serde = ["trace4rs_config/serde"]
+serde = ["trace4rs-config/serde"]
 
 [dependencies]
 literally = "0.1.3"
@@ -28,8 +28,8 @@ tracing-subscriber = { version = "0.3", features = [
 tracing-log = "0.1.2"
 time = { version = "0.3.5", features = ["formatting", "macros"] }
 path-absolutize = "3.0.11"
-trace4rs_config = {path = "../config"}
-fmtorp = { version = "0.1.0", path = "../fmtorp" }
+trace4rs-config = { version = "0.1.0", path = "../trace4rs-config"}
+trace4rs-fmtorp = { version = "0.1.0", path = "../trace4rs-fmtorp" }
 
 [dev-dependencies]
 criterion = "0.4.0"
@@ -47,7 +47,7 @@ tokio = { version = "1.13.0", features = [
     "time",
     "fs",
 ] }
-trace4rs_config = {path = "../config", features = ["in-order-serialization"]}
+trace4rs-config = {path = "../trace4rs-config", features = ["in-order-serialization"]}
 
 [[bench]]
 name = "trace4rs_bench"
