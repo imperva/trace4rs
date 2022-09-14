@@ -5,6 +5,7 @@ edition = "2021"
 description = "log4rs like usability with the `tracing` crate as the base"
 keywords = ["tracing", "logging", "log4rs"]
 authors = ["Evan Simmons", "Everett Pompeii", "Richard Meester"]
+license = "MIT"
 
 [features]
 tracing-macros = [] # internal, for benches

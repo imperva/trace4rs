@@ -5,6 +5,7 @@ edition = "2021"
 description = "trace4rs configuration"
 keywords = ["tracing", "logging", "log4rs"]
 authors = ["Evan Simmons", "Everett Pompeii", "Richard Meester"]
+license = "MIT"
 
 [features]
 in-order-serialization = ["serde"]

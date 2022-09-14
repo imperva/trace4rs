@@ -225,7 +225,7 @@ impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
         }
     }
 }
-impl<'ctx, 'evt> fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
+impl<'ctx, 'evt> trace4rs_fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
     fn write_value(&self, mut writer: format::Writer<'_>, field: &'static str) -> fmt::Result {
         let normalized_meta = self.event.normalized_metadata();
         let meta = normalized_meta
@@ -251,13 +251,13 @@ impl<'ctx, 'evt> fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
 /// move Message only  and this to formatter.rs and utcoffsettime
 #[derive(Debug)]
 pub struct CustomFormatter {
-    fmtr: fmtorp::Fmtr<'static>,
+    fmtr: trace4rs_fmtorp::Fmtr<'static>,
 }
 unsafe impl Sync for CustomFormatter {}
 unsafe impl Send for CustomFormatter {}
 impl CustomFormatter {
-    fn new(fmt_str: impl Into<Cow<'static, str>>) -> Result<Self, fmtorp::Error> {
-        let fmtr = fmtorp::Fmtr::new(fmt_str, &fields::FIELD_SET)?;
+    fn new(fmt_str: impl Into<Cow<'static, str>>) -> Result<Self, trace4rs_fmtorp::Error> {
+        let fmtr = trace4rs_fmtorp::Fmtr::new(fmt_str, &fields::FIELD_SET)?;
 
         Ok(Self { fmtr })
     }
