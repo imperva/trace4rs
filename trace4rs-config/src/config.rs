@@ -158,7 +158,7 @@ pub struct Logger {
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
-    serde(rename_all = "lowercase")
+    serde(untagged, rename_all = "lowercase")
 )]
 #[cfg_attr(feature = "schemars", derive(JsonSchema))]
 pub enum Format {
