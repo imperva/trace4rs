@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.2.1]
+
+### Fixed
+
+* Fixed wrong trace4rs linked packages.
+
 ## [0.2.0]
 
 ### Changed
