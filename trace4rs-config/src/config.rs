@@ -154,6 +154,47 @@ pub struct Logger {
     pub format:    Format,
 }
 
+macro_rules! named_unit_variant {
+    ($variant:ident) => {
+        pub mod $variant {
+            pub fn serialize<S>(serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                serializer.serialize_str(stringify!($variant))
+            }
+
+            pub fn deserialize<'de, D>(deserializer: D) -> Result<(), D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct V;
+                impl<'de> serde::de::Visitor<'de> for V {
+                    type Value = ();
+
+                    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        f.write_str(concat!("\"", stringify!($variant), "\""))
+                    }
+
+                    fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+                        if value == stringify!($variant) {
+                            Ok(())
+                        } else {
+                            Err(E::invalid_value(serde::de::Unexpected::Str(value), &self))
+                        }
+                    }
+                }
+                deserializer.deserialize_str(V)
+            }
+        }
+    };
+}
+
+mod format {
+    named_unit_variant!(normal);
+    named_unit_variant!(messageonly);
+}
+
 #[derive(PartialEq, Eq, Clone, Debug, SmartDefault)]
 #[cfg_attr(
     feature = "serde",
@@ -163,7 +204,9 @@ pub struct Logger {
 #[cfg_attr(feature = "schemars", derive(JsonSchema))]
 pub enum Format {
     #[default]
+    #[serde(with = "format::normal")]
     Normal,
+    #[serde(with = "format::messageonly")]
     MessageOnly,
     Custom(String),
 }
