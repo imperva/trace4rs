@@ -207,8 +207,10 @@ mod format {
 pub enum Format {
     #[default]
     #[cfg_attr(feature = "serde", serde(with = "format::normal"))]
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     Normal,
     #[cfg_attr(feature = "serde", serde(with = "format::messageonly"))]
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     MessageOnly,
     Custom(String),
 }
