@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.3.0]
+
+### Fixed
+
+* Fixed config serialization issue [#3](https://github.com/imperva/trace4rs/pull/4)
+
 ## [0.2.1]
 
 ### Fixed
