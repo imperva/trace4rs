@@ -1,6 +1,6 @@
 [package]
 name = "trace4rs"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "log4rs like usability with the `tracing` crate as the base"
 keywords = ["tracing", "logging", "log4rs"]
@@ -29,8 +29,8 @@ tracing-subscriber = { version = "0.3", features = [
 tracing-log = "0.1.2"
 time = { version = "0.3.5", features = ["formatting", "macros"] }
 path-absolutize = "3.0.11"
-trace4rs-config = { version = "0.2.1", path = "../trace4rs-config"}
-trace4rs-fmtorp = { version = "0.2.1", path = "../trace4rs-fmtorp" }
+trace4rs-config = { version = "0.3.0", path = "../trace4rs-config"}
+trace4rs-fmtorp = { version = "0.3.0", path = "../trace4rs-fmtorp" }
 
 [dev-dependencies]
 criterion = "0.4.0"

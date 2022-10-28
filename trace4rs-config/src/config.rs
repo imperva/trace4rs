@@ -154,6 +154,7 @@ pub struct Logger {
     pub format:    Format,
 }
 
+#[cfg(feature = "serde")]
 macro_rules! named_unit_variant {
     ($variant:ident) => {
         pub mod $variant {
@@ -190,6 +191,7 @@ macro_rules! named_unit_variant {
     };
 }
 
+#[cfg(feature = "serde")]
 mod format {
     named_unit_variant!(normal);
     named_unit_variant!(messageonly);
@@ -204,9 +206,9 @@ mod format {
 #[cfg_attr(feature = "schemars", derive(JsonSchema))]
 pub enum Format {
     #[default]
-    #[serde(with = "format::normal")]
+    #[cfg_attr(feature = "serde", serde(with = "format::normal"))]
     Normal,
-    #[serde(with = "format::messageonly")]
+    #[cfg_attr(feature = "serde", serde(with = "format::messageonly"))]
     MessageOnly,
     Custom(String),
 }
