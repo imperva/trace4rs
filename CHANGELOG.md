@@ -1,6 +1,12 @@
 # Change Log
 
+## [0.3.1]
+
+### Fixed
+
 ## [0.3.0]
+
+* Fix schemars [#5](https://github.com/imperva/trace4rs/pull/5)
 
 ### Fixed
 
