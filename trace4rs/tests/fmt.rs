@@ -18,7 +18,7 @@ fn test_custom_fmt() {
     env::set_current_dir(tmp_guard.path()).unwrap();
 
     let conf: Config = serde_json::from_value(json!( {
-        "root": {
+        "default": {
             "format": {
                 "custom": "{T} {t}: {l} {f} --",
             },
@@ -64,9 +64,11 @@ fn test_custom_fmt() {
 
     log::info!(target: "one", "logging to one");
     log::info!(target: "two", "logging to two");
+    tracing::info!(target: "two", baz = "foobarish", "logging to two from tracing");
     sleep(Duration::from_millis(100));
     let f1_content = fs::read_to_string("./file1.log").unwrap();
     println!("{f1_content}");
     assert!(f1_content.contains("logging to one --"));
     assert!(f1_content.contains("INFO two: logging to two"));
+    assert!(f1_content.contains("baz=\"foobarish\""));
 }

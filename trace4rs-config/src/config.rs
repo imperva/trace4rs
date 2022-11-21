@@ -195,6 +195,60 @@ macro_rules! named_unit_variant {
 mod format {
     named_unit_variant!(normal);
     named_unit_variant!(messageonly);
+
+    pub mod custom {
+        use serde::{
+            de::MapAccess,
+            ser::SerializeMap,
+        };
+
+        pub fn serialize<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            let mut m = serializer.serialize_map(Some(1))?;
+            m.serialize_entry("custom", value)?;
+            m.end()
+        }
+
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<String, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct V;
+            impl<'de> serde::de::Visitor<'de> for V {
+                type Value = String;
+
+                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    f.write_str(concat!(r#"{ "custom": "<format string>" }"#))
+                }
+
+                fn visit_map<A: MapAccess<'de>>(
+                    self,
+                    mut value: A,
+                ) -> Result<Self::Value, A::Error> {
+                    println!("visiting map");
+                    // todo(eas): ensure we're the only one
+                    if let Some((key, val)) = value.next_entry::<String, String>()? {
+                        if key == "custom" {
+                            Ok(val)
+                        } else {
+                            Err(serde::de::Error::invalid_value(
+                                serde::de::Unexpected::Str("custom"),
+                                &self,
+                            ))
+                        }
+                    } else {
+                        Err(serde::de::Error::invalid_type(
+                            serde::de::Unexpected::Other("Map of non String: String values"),
+                            &self,
+                        ))
+                    }
+                }
+            }
+            deserializer.deserialize_map(V)
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, SmartDefault)]
@@ -212,6 +266,7 @@ pub enum Format {
     #[cfg_attr(feature = "serde", serde(with = "format::messageonly"))]
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     MessageOnly,
+    #[cfg_attr(feature = "serde", serde(with = "format::custom"))]
     Custom(String),
 }
 impl Format {
