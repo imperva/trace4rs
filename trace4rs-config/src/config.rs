@@ -227,7 +227,6 @@ mod format {
                     self,
                     mut value: A,
                 ) -> Result<Self::Value, A::Error> {
-                    println!("visiting map");
                     // todo(eas): ensure we're the only one
                     if let Some((key, val)) = value.next_entry::<String, String>()? {
                         if key == "custom" {
