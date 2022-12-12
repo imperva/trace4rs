@@ -67,7 +67,7 @@ jobs:
           rustup update
           rustup toolchain install nightly
           wget https://github.com/bencherdev/bencher/releases/download/v${BENCHER_VERSION}/bencher_${BENCHER_VERSION}_amd64.deb
-          dpkg -i bencher_${BENCHER_VERSION}_amd64.deb
+          sudo dpkg -i bencher_${BENCHER_VERSION}_amd64.deb
       - name: Benchmark with Bencher
         run: bencher run --if-branch $GITHUB_REF_NAME --err "cargo bench"
 
