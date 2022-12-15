@@ -271,7 +271,7 @@ impl io::Write for Appender {
 
 /// An appender which writes to stdout.
 #[derive(Clone, Default)]
-pub struct Console {}
+pub struct Console;
 impl Console {
     pub fn new() -> Self {
         Self::default()

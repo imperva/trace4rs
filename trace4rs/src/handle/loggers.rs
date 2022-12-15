@@ -195,6 +195,7 @@ mod fields {
     use std::collections::HashSet;
 
     pub const TIMESTAMP: &str = "T";
+    pub const TIMESTAMP_UTC: &str = "T(utc)";
     pub const TARGET: &str = "t";
     pub const MESSAGE: &str = "m";
     pub const FIELDS: &str = "f";
@@ -203,6 +204,7 @@ mod fields {
         once_cell::sync::Lazy::new(|| {
             let mut set = HashSet::new();
             set.insert(TIMESTAMP);
+            set.insert(TIMESTAMP_UTC);
             set.insert(TARGET);
             set.insert(MESSAGE);
             set.insert(FIELDS);
@@ -224,6 +226,11 @@ impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
             t.format_time(&mut writer)
         }
     }
+
+    fn format_timestamp_utc(mut writer: format::Writer<'_>) -> fmt::Result {
+        let t = tracing_subscriber::fmt::time::UtcTime::rfc_3339();
+        t.format_time(&mut writer)
+    }
 }
 impl<'ctx, 'evt> trace4rs_fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
     fn write_value(&self, mut writer: format::Writer<'_>, field: &'static str) -> fmt::Result {
@@ -234,6 +241,8 @@ impl<'ctx, 'evt> trace4rs_fmtorp::FieldValueWriter for CustomValueWriter<'ctx, '
 
         if field == fields::TIMESTAMP {
             Self::format_timestamp(writer)?;
+        } else if field == fields::TIMESTAMP_UTC {
+            Self::format_timestamp_utc(writer)?;
         } else if field == fields::TARGET {
             write!(writer, "{}", meta.target())?;
         } else if field == fields::MESSAGE {
@@ -253,7 +262,11 @@ impl<'ctx, 'evt> trace4rs_fmtorp::FieldValueWriter for CustomValueWriter<'ctx, '
 pub struct CustomFormatter {
     fmtr: trace4rs_fmtorp::Fmtr<'static>,
 }
+// SAFETY:
+// `CustomFormatter` is safe to sync
 unsafe impl Sync for CustomFormatter {}
+// SAFETY:
+// `CustomFormatter` is safe to send
 unsafe impl Send for CustomFormatter {}
 impl CustomFormatter {
     fn new(fmt_str: impl Into<Cow<'static, str>>) -> Result<Self, trace4rs_fmtorp::Error> {
