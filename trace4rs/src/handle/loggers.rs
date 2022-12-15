@@ -262,7 +262,11 @@ impl<'ctx, 'evt> trace4rs_fmtorp::FieldValueWriter for CustomValueWriter<'ctx, '
 pub struct CustomFormatter {
     fmtr: trace4rs_fmtorp::Fmtr<'static>,
 }
+// SAFETY:
+// `CustomFormatter` is safe to sync
 unsafe impl Sync for CustomFormatter {}
+// SAFETY:
+// `CustomFormatter` is safe to send
 unsafe impl Send for CustomFormatter {}
 impl CustomFormatter {
     fn new(fmt_str: impl Into<Cow<'static, str>>) -> Result<Self, trace4rs_fmtorp::Error> {
