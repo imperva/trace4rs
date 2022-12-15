@@ -1,6 +1,6 @@
 [package]
 name = "trace4rs"
-version = "0.3.1"
+version = "0.4.1"
 edition = "2021"
 description = "log4rs like usability with the `tracing` crate as the base"
 keywords = ["tracing", "logging", "log4rs"]
@@ -8,7 +8,7 @@ authors = ["Evan Simmons", "Everett Pompeii", "Richard Meester"]
 license = "MIT"
 
 [features]
-tracing-macros = [] # internal, for benches
+tracing-macros = []               # internal, for benches
 serde = ["trace4rs-config/serde"]
 
 [dependencies]
@@ -29,8 +29,8 @@ tracing-subscriber = { version = "0.3", features = [
 tracing-log = "0.1.2"
 time = { version = "0.3.5", features = ["formatting", "macros"] }
 path-absolutize = "3.0.11"
-trace4rs-config = { version = "0.3.1", path = "../trace4rs-config"}
-trace4rs-fmtorp = { version = "0.3.1", path = "../trace4rs-fmtorp" }
+trace4rs-config = { path = "../trace4rs-config" }
+trace4rs-fmtorp = { path = "../trace4rs-fmtorp" }
 
 [dev-dependencies]
 criterion = "0.4.0"
@@ -48,7 +48,9 @@ tokio = { version = "1.13.0", features = [
     "time",
     "fs",
 ] }
-trace4rs-config = {path = "../trace4rs-config", features = ["in-order-serialization"]}
+trace4rs-config = { path = "../trace4rs-config", features = [
+    "in-order-serialization",
+] }
 
 [[bench]]
 name = "trace4rs_bench"
