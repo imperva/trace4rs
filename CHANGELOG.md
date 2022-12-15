@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.4.2]
+
+### Fixed
+
+* Compile err with schemars and serde features enabled.
+* Move `allow(clippy::pub_use)` to the root.
+
 ## [0.4.1]
 
 ### Added
