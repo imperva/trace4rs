@@ -1,8 +1,16 @@
 # Change Log
 
+## [0.4.1]
+
+### Added
+
+* Added utc time formatting within custom format strings
+
 ## [0.3.1]
 
 ### Fixed
+
+Bugfix
 
 ## [0.3.0]
 
