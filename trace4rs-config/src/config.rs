@@ -407,7 +407,7 @@ impl Policy {
         const TB: u64 = GB * 1024;
 
         // This is lifted from log4rs. We need to replace this..or something.
-        let (number, unit) = match size.find(|c: char| !c.is_digit(10)) {
+        let (number, unit) = match size.find(|c: char| !c.is_ascii_digit()) {
             Some(n) => {
                 let mut chars = size.chars();
                 let (first, rest) = (
