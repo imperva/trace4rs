@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.4.5]
+
+### Fixed
+
+* Rm a print.
+
 ## [0.4.4]
 
 ### Fixed

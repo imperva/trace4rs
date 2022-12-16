@@ -203,7 +203,6 @@ mod format {
         where
             S: serde::Serializer,
         {
-            println!("serializing {value}");
             serializer.serialize_str(value)
         }
 
