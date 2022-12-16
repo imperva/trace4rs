@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.4.3]
+
+### Fixed
+
+* Fixed custom log format serialization schema.
+
 ## [0.4.2]
 
 ### Fixed
