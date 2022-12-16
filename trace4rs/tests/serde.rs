@@ -123,3 +123,41 @@ fn test_de() {
     // now lets convert this to a Handle
     let _handle: crate::Handle = parsed.try_into().unwrap();
 }
+
+#[test]
+fn test_custom_parse_fail() {
+    // Lets not leave the git dir filthy.
+    let tmp_guard = tempfile::tempdir().unwrap();
+    env::set_current_dir(tmp_guard.path()).unwrap();
+
+    let conf = r#"
+            {
+                "root": {
+                    "level" : "trace",
+                    "appenders": ["file1"],
+                    "format" : {
+                        "custom": "{f}",
+                        "badfmtkey": "badfmtvalue"
+                    }
+                },
+                "appenders": {
+                    "file1": {
+                        "kind": "file",
+                        "path": "foobar.log"
+                    }
+                },
+                "loggers": {
+                    "my_target": {
+                        "level": "warn",
+                        "appenders": ["file1"],
+                        "format": "messageonly"
+                    }
+                }
+            }
+        "#;
+    if let Err(parse_err) = serde_json::from_str::<Config>(conf) {
+        assert!(parse_err.to_string().contains("did not match any variant"));
+    } else {
+        panic!("expected parse to fail")
+    }
+}
