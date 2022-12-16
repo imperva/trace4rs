@@ -27,4 +27,5 @@ rustflags = [
     "-Aclippy::default_numeric_fallback",       # should be allowed with '0'.
     "-Aclippy::module_name_repetitions",        # I found this impractical
     "-Aclippy::implicit_hasher",                # Adds a lot of complication only a bit of generalization
+    "-Aclippy::pub_use",
 ]

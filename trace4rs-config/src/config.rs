@@ -265,6 +265,7 @@ pub enum Format {
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     MessageOnly,
     #[cfg_attr(feature = "serde", serde(with = "format::custom"))]
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     Custom(String),
 }
 impl Format {
