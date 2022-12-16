@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.4.4]
+
+### Fixed
+
+* Actually apply custom format fix.
+
 ## [0.4.3]
 
 ### Fixed

@@ -197,18 +197,14 @@ mod format {
     named_unit_variant!(messageonly);
 
     pub mod custom {
-        use serde::{
-            de::MapAccess,
-            ser::SerializeMap,
-        };
+        use serde::de::MapAccess;
 
         pub fn serialize<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
         {
-            let mut m = serializer.serialize_map(Some(1))?;
-            m.serialize_entry("custom", value)?;
-            m.end()
+            println!("serializing {value}");
+            serializer.serialize_str(value)
         }
 
         pub fn deserialize<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -227,21 +223,7 @@ mod format {
                     self,
                     mut value: A,
                 ) -> Result<Self::Value, A::Error> {
-                    if let Some((key, val)) = value.next_entry::<String, String>()? {
-                        if key == "custom" {
-                            Ok(val)
-                        } else {
-                            Err(serde::de::Error::invalid_value(
-                                serde::de::Unexpected::Str("custom"),
-                                &self,
-                            ))
-                        }
-                    } else {
-                        Err(serde::de::Error::invalid_type(
-                            serde::de::Unexpected::Other("Map of non String: String values"),
-                            &self,
-                        ))
-                    }
+                    value.next_value::<String>()
                 }
             }
             deserializer.deserialize_map(V)
@@ -451,5 +433,45 @@ impl Policy {
             Some(n) => Ok(n),
             None => Err(Error::Overflow { number, unit }),
         }
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod test {
+    use literally::hset;
+
+    use super::{
+        LevelFilter,
+        Logger,
+    };
+    use crate::config::Format;
+
+    #[test]
+    fn test_format_serde() {
+        let lgr = Logger {
+            appenders: hset! {},
+            level:     LevelFilter::OFF,
+            format:    Format::Normal,
+        };
+        let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
+        assert!(lgr_value.get("format").is_none());
+
+        let lgr = Logger {
+            appenders: hset! {},
+            level:     LevelFilter::OFF,
+            format:    Format::MessageOnly,
+        };
+        let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
+        let fmt = lgr_value.get("format").unwrap().as_str().unwrap();
+        assert_eq!(fmt, "messageonly");
+
+        let lgr = Logger {
+            appenders: hset! {},
+            level:     LevelFilter::OFF,
+            format:    Format::Custom("foobar".to_string()),
+        };
+        let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
+        let fmt = lgr_value.get("format").unwrap().as_str().unwrap();
+        assert_eq!(fmt, "foobar");
     }
 }

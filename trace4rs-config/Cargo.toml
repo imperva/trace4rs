@@ -1,6 +1,6 @@
 [package]
 name = "trace4rs-config"
-version = "0.4.3"
+version = "0.4.4"
 edition = "2021"
 description = "trace4rs configuration"
 keywords = ["tracing", "logging", "log4rs"]
@@ -17,3 +17,6 @@ serde = { version = "1.0.130", optional = true, features = ["derive"] }
 smart-default = "0.6.0"
 thiserror = "1.0.29"
 tracing = "0.1.0"
+
+[dev-dependencies]
+serde_json = "1.0.89"
