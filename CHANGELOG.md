@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.4.6]
+
+### Fixed
+
+* Fix format str deserialization.
+
 ## [0.4.5]
 
 ### Fixed

@@ -197,8 +197,6 @@ mod format {
     named_unit_variant!(messageonly);
 
     pub mod custom {
-        use serde::de::MapAccess;
-
         pub fn serialize<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -218,14 +216,15 @@ mod format {
                     f.write_str(concat!(r#"{ "custom": "<format string>" }"#))
                 }
 
-                fn visit_map<A: MapAccess<'de>>(
-                    self,
-                    mut value: A,
-                ) -> Result<Self::Value, A::Error> {
-                    value.next_value::<String>()
+                fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+                    if value != "messageonly" && value != "normal" {
+                        Ok(value.to_string())
+                    } else {
+                        Err(E::invalid_value(serde::de::Unexpected::Str(value), &self))
+                    }
                 }
             }
-            deserializer.deserialize_map(V)
+            deserializer.deserialize_str(V)
         }
     }
 }
@@ -454,6 +453,8 @@ mod test {
         };
         let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
         assert!(lgr_value.get("format").is_none());
+        let lgr_parsed: Logger = serde_json::from_value(lgr_value).unwrap();
+        assert_eq!(lgr_parsed.format, Format::Normal);
 
         let lgr = Logger {
             appenders: hset! {},
@@ -463,6 +464,8 @@ mod test {
         let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
         let fmt = lgr_value.get("format").unwrap().as_str().unwrap();
         assert_eq!(fmt, "messageonly");
+        let lgr_parsed: Logger = serde_json::from_value(lgr_value).unwrap();
+        assert_eq!(lgr_parsed.format, Format::MessageOnly);
 
         let lgr = Logger {
             appenders: hset! {},
@@ -472,5 +475,7 @@ mod test {
         let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
         let fmt = lgr_value.get("format").unwrap().as_str().unwrap();
         assert_eq!(fmt, "foobar");
+        let lgr_parsed: Logger = serde_json::from_value(lgr_value).unwrap();
+        assert_eq!(lgr_parsed.format, Format::Custom("foobar".to_string()));
     }
 }
