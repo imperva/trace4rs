@@ -60,6 +60,7 @@ jobs:
       BENCHER_TESTBED: ubuntu-latest
       BENCHER_ADAPTER: rust
       BENCHER_VERSION: 0.2.27
+      BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
     steps:
       - uses: actions/checkout@v3
       - name: Install
