@@ -3,6 +3,8 @@ name = "utc-offset"
 version = "0.1.0"
 authors = ["rmeester <richard.meester@imperva.com>"]
 edition = "2021"
+description = "A no-holds-barred utc-offset getter"
+license = "MIT"
 
 [dependencies]
 log = "0.4.13"
