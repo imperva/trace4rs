@@ -57,7 +57,7 @@ use crate::{
     },
 };
 
-static UTC_OFFSET: Lazy<UtcOffset> = Lazy::new(|| utc_offset::get_local_offset());
+static UTC_OFFSET: Lazy<UtcOffset> = Lazy::new(utc_offset::get_local_offset);
 static NORMAL_FMT: Lazy<Format<Full, UtcOffsetTime>> =
     Lazy::new(|| Format::default().with_timer(UtcOffsetTime).with_ansi(false));
 
