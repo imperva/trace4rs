@@ -1,6 +1,6 @@
 [package]
 name = "trace4rs-fmtorp"
-version = "0.4.6"
+version = "0.5.0"
 edition = "2021"
 description = "Torpid formatting for trace4rs"
 license = "MIT"

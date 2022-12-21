@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.5.0]
+
+### Added
+
+* Add utc-offset as a last resort to obtain the local utc offset
+
 ## [0.4.6]
 
 ### Fixed
