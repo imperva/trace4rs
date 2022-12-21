@@ -173,7 +173,8 @@ impl Appender {
             Roller,
             Trigger,
         };
-        let abs_path = Path::new(path_str.as_ref()).absolutize()?;
+        let p = Path::new(path_str.as_ref());
+        let abs_path = p.absolutize().unwrap_or_else(|_| p.into());
         let pattern = RollingFile::make_qualified_pattern(&abs_path, pattern_opt);
         let abs_path_str = abs_path.to_string_lossy();
 

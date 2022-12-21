@@ -1,8 +1,5 @@
 #![cfg(feature = "serde")]
-use std::{
-    convert::TryInto,
-    env,
-};
+use std::convert::TryInto;
 
 use trace4rs::{
     config::{
@@ -25,11 +22,11 @@ fn test_de_ser() {
     "appenders": {
         "file1": {
             "kind": "file",
-            "path": "foobar.log"
+            "path": "./foobar.log"
         },
         "file2": {
             "kind": "rollingfile",
-            "path": "foobar.log",
+            "path": "./foobar.log",
             "rolloverPolicy": {
                 "maximumFileSize": "1mb",
                 "maxSizeRollBackups": 3
@@ -37,7 +34,7 @@ fn test_de_ser() {
         },
         "file3": {
             "kind": "rollingfile",
-            "path": "foobar.log",
+            "path": "./foobar.log",
             "rolloverPolicy": {
                 "maximumFileSize": "1mb",
                 "maxSizeRollBackups": 3,
@@ -66,7 +63,7 @@ fn test_de_ser() {
 fn test_de() {
     // Lets not leave the git dir filthy.
     let tmp_guard = tempfile::tempdir().unwrap();
-    env::set_current_dir(tmp_guard.path()).unwrap();
+    let tmp_path = tmp_guard.path().to_string_lossy();
 
     let conf = r#"
             {
@@ -77,11 +74,11 @@ fn test_de() {
                 "appenders": {
                     "file1": {
                         "kind": "file",
-                        "path": "foobar.log"
+                        "path": "<tmp_path>/foobar.log"
                     },
                     "file2": {
                         "kind": "rollingfile",
-                        "path": "foobar.log",
+                        "path": "<tmp_path>/foobar.log",
                         "rolloverPolicy": {
                             "maximumFileSize": "1mb",
                             "maxSizeRollBackups": 3
@@ -89,11 +86,11 @@ fn test_de() {
                     },
                     "file3": {
                         "kind": "rollingfile",
-                        "path": "foobar.log",
+                        "path": "<tmp_path>/foobar.log",
                         "rolloverPolicy": {
                             "maximumFileSize": "1mb",
                             "maxSizeRollBackups": 3,
-                            "pattern": "foobar.log.roll.{}"
+                            "pattern": "<tmp_path>/foobar.log.roll.{}"
                         }
                     }
                 },
@@ -105,7 +102,8 @@ fn test_de() {
                 }
             }
         "#;
-    let parsed: Config = serde_json::from_str(conf).unwrap();
+    let conf = conf.replace("<tmp_path>", &tmp_path);
+    let parsed: Config = serde_json::from_str(&conf).unwrap();
 
     assert_eq!(parsed.default.level, LevelFilter::TRACE);
     let file1 = &AppenderId("file1".to_string());
@@ -116,8 +114,9 @@ fn test_de() {
     assert_eq!(my_target.appenders.len(), 1);
     assert_eq!(my_target.appenders.iter().next().unwrap(), file1);
 
-    assert_eq!(parsed.appenders.get(file1).unwrap(), &Appender::File {
-        path: "foobar.log".to_string(),
+    let file1_appender = parsed.appenders.get(file1).unwrap();
+    assert_eq!(file1_appender, &Appender::File {
+        path: format!("{tmp_path}/foobar.log"),
     });
 
     // now lets convert this to a Handle
@@ -128,7 +127,7 @@ fn test_de() {
 fn test_custom_parse_fail() {
     // Lets not leave the git dir filthy.
     let tmp_guard = tempfile::tempdir().unwrap();
-    env::set_current_dir(tmp_guard.path()).unwrap();
+    let tmp_path = tmp_guard.path().to_string_lossy();
 
     let conf = r#"
             {
@@ -143,7 +142,7 @@ fn test_custom_parse_fail() {
                 "appenders": {
                     "file1": {
                         "kind": "file",
-                        "path": "foobar.log"
+                        "path": "<tmp_path>/foobar.log"
                     }
                 },
                 "loggers": {
@@ -155,7 +154,8 @@ fn test_custom_parse_fail() {
                 }
             }
         "#;
-    if let Err(parse_err) = serde_json::from_str::<Config>(conf) {
+    let conf = conf.replace("<tmp_path>", &tmp_path);
+    if let Err(parse_err) = serde_json::from_str::<Config>(&conf) {
         assert!(parse_err.to_string().contains("did not match any variant"));
     } else {
         panic!("expected parse to fail")
