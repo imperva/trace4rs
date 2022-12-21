@@ -6,6 +6,10 @@ use std::{
 };
 
 use once_cell::sync::Lazy;
+use time::{
+    OffsetDateTime,
+    UtcOffset,
+};
 use tracing::{
     field::Visit,
     metadata::LevelFilter,
@@ -53,6 +57,7 @@ use crate::{
     },
 };
 
+static UTC_OFFSET: Lazy<UtcOffset> = Lazy::new(|| utc_offset::get_local_offset());
 static NORMAL_FMT: Lazy<Format<Full, UtcOffsetTime>> =
     Lazy::new(|| Format::default().with_timer(UtcOffsetTime).with_ansi(false));
 
@@ -329,8 +334,8 @@ struct UtcOffsetTime;
 
 impl FormatTime for UtcOffsetTime {
     fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
-        let ts =
-            time::OffsetDateTime::now_local().unwrap_or_else(|_| time::OffsetDateTime::now_utc());
+        let mut ts = OffsetDateTime::now_utc();
+        ts = ts.replace_offset(*UTC_OFFSET);
         let ts_str = ts.format(&TIME_FORMAT).unwrap_or_default();
 
         w.write_str(&ts_str)
