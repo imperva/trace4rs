@@ -19,9 +19,7 @@ fn test_custom_fmt() {
 
     let conf: Config = serde_json::from_value(json!( {
         "default": {
-            "format": {
-                "custom": "{T} {t}: {l} {f} --",
-            },
+            "format":  "{T} {t}: {l} {f} --",
             "appenders": ["file1"],
             "level" : "TRACE"
         },
@@ -34,16 +32,12 @@ fn test_custom_fmt() {
         "loggers": {
             "one": {
                 "appenders": ["file1"],
-                "format": {
-                    "custom": "{T} {t}: {l} {m} --",
-                },
+                "format":  "{T} {t}: {l} {m} --",
                 "level": "TRACE"
             },
             "two": {
                 "appenders": ["file1"],
-                "format": {
-                    "custom": "{T} {t}: {l} {f} {foo}",
-                },
+                "format": "{T} {t}: {l} {f} {foo}",
                 "level": "TRACE"
             }
         }

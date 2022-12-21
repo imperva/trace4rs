@@ -6,6 +6,7 @@ use std::{
 };
 
 use once_cell::sync::Lazy;
+use time::UtcOffset;
 use tracing::{
     field::Visit,
     metadata::LevelFilter,
@@ -53,6 +54,10 @@ use crate::{
     },
 };
 
+const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
+    time::format_description::well_known::Rfc3339;
+
+static UTC_OFFSET: Lazy<UtcOffset> = Lazy::new(utc_offset::get_local_offset);
 static NORMAL_FMT: Lazy<Format<Full, UtcOffsetTime>> =
     Lazy::new(|| Format::default().with_timer(UtcOffsetTime).with_ansi(false));
 
@@ -163,7 +168,8 @@ impl From<ConfigFormat> for EventFormatter {
                     #[allow(clippy::print_stderr)] // necessary error surfacing
                     Err(e) => {
                         eprintln!(
-                            "Error configuring trace4rs formatting: {e}, using default formatter"
+                            "trace4rs: Error parsing logger custom format: {e}, using default \
+                             formatter"
                         );
                         Self::default()
                     },
@@ -219,12 +225,9 @@ struct CustomValueWriter<'ctx, 'evt> {
 }
 impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
     fn format_timestamp(mut writer: format::Writer<'_>) -> fmt::Result {
-        if let Ok(t) = tracing_subscriber::fmt::time::OffsetTime::local_rfc_3339() {
-            t.format_time(&mut writer)
-        } else {
-            let t = tracing_subscriber::fmt::time::UtcTime::rfc_3339();
-            t.format_time(&mut writer)
-        }
+        use tracing_subscriber::fmt::time::OffsetTime;
+        let t = OffsetTime::new(*UTC_OFFSET, TIME_FORMAT);
+        t.format_time(&mut writer)
     }
 
     fn format_timestamp_utc(mut writer: format::Writer<'_>) -> fmt::Result {
@@ -322,17 +325,12 @@ impl<'w> Visit for SingleFieldVisitor<'w> {
     }
 }
 
-const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
-    time::format_description::well_known::Rfc3339;
-
 struct UtcOffsetTime;
 
 impl FormatTime for UtcOffsetTime {
     fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
-        let ts =
-            time::OffsetDateTime::now_local().unwrap_or_else(|_| time::OffsetDateTime::now_utc());
-        let ts_str = ts.format(&TIME_FORMAT).unwrap_or_default();
-
-        w.write_str(&ts_str)
+        use tracing_subscriber::fmt::time::OffsetTime;
+        let t = OffsetTime::new(*UTC_OFFSET, TIME_FORMAT);
+        t.format_time(w)
     }
 }
