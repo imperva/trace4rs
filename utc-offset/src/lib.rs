@@ -1,3 +1,5 @@
+#![allow(clippy::doc_markdown, clippy::missing_errors_doc)]
+
 use std::{
     process::Command,
     str,
@@ -98,6 +100,7 @@ pub fn set_global_offset_from_str(input: &str) -> Result<(i8, i8), Error> {
 /// # Returns
 /// Returns a `Result` of either the inputed offset hours/minutes or an Error if
 /// the method fails.
+#[allow(clippy::manual_range_contains)]
 pub fn set_global_offset(offset_hours: i8, offset_minutes: i8) -> Result<(i8, i8), Error> {
     if offset_hours < -12 || offset_hours > 14 {
         Err(Error::InvalidOffsetHours(offset_hours))
@@ -133,6 +136,7 @@ pub fn get_local_timestamp_rfc3339() -> Result<String, Error> {
 /// Returns a `Result` of either the timestamp in the following format
 /// "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour
 /// sign:mandatory]:[offset_second]", or an error if the method fails.
+#[allow(clippy::cast_lossless)]
 pub fn get_local_timestamp_from_offset_rfc3339(utc_offset: UtcOffset) -> Result<String, Error> {
     let datetime_now = OffsetDateTime::now_utc();
     if utc_offset != UtcOffset::UTC {
