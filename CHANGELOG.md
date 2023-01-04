@@ -1,5 +1,9 @@
 # Change Log
 
+## [UNRELEASED]
+
+* Externalize utc-offset crate
+
 ## [0.5.0]
 
 ### Added
