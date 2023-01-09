@@ -1,7 +1,7 @@
-use std::{
-    io,
-    path::PathBuf,
-};
+use std::io;
+
+use camino::Utf8PathBuf;
+
 /// A `trace4rs` Result.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -9,10 +9,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Failed to correct the output path at '{0}', perhaps it is un-writeable: {1}")]
-    PathCorrectionFail(String, #[source] io::Error),
+    PathCorrectionFail(Utf8PathBuf, #[source] io::Error),
 
     #[error("Failed to flush appender for '{0}': {1}")]
-    FlushFail(String, #[source] io::Error),
+    FlushFail(Utf8PathBuf, #[source] io::Error),
 
     #[error("error setting the global default logger: {0}")]
     SetGlobalDefaultError(#[from] tracing::subscriber::SetGlobalDefaultError),
@@ -22,14 +22,14 @@ pub enum Error {
 
     #[error("Failed to create file at '{path}': {source}")]
     CreateFailed {
-        path:   PathBuf,
+        path:   Utf8PathBuf,
         #[source]
         source: io::Error,
     },
 
     #[error("Failed to get metadata for '{path}': {source}")]
     MetadataFailed {
-        path:   PathBuf,
+        path:   Utf8PathBuf,
         #[source]
         source: io::Error,
     },

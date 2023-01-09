@@ -1,6 +1,5 @@
 #![allow(clippy::single_char_lifetime_names)]
 use std::{
-    borrow::Cow,
     collections::HashMap,
     convert::TryFrom,
     fs::{self,},
@@ -10,13 +9,14 @@ use std::{
         Write,
     },
     ops::Deref,
-    path::{
-        Path,
-        PathBuf,
-    },
+    path::Path,
     sync::Arc,
 };
 
+use camino::{
+    Utf8Path,
+    Utf8PathBuf,
+};
 use parking_lot::Mutex;
 use path_absolutize::Absolutize;
 use tracing_subscriber::fmt::MakeWriter;
@@ -27,7 +27,7 @@ use crate::{
         AppenderId,
         Policy,
     },
-    env::expand_env_vars,
+    env::try_expand_env_vars,
     error::{
         Error,
         Result,
@@ -154,7 +154,7 @@ impl Appender {
     ///
     /// # Errors
     /// - We may fail to open the file for write.
-    pub fn new_file(p: impl AsRef<str>) -> Result<Self> {
+    pub fn new_file(p: impl AsRef<Utf8Path>) -> Result<Self> {
         Ok(Self::File(Arc::new(Mutex::new(File::new(p)?))))
     }
 
@@ -173,10 +173,19 @@ impl Appender {
             Roller,
             Trigger,
         };
-        let p = Path::new(path_str.as_ref());
-        let abs_path = p.absolutize().unwrap_or_else(|_| p.into());
+        let abs_path = {
+            let ps = path_str.as_ref();
+            let cp = Utf8Path::new(ps);
+
+            let p = Path::new(ps);
+
+            p.absolutize()
+                .ok()
+                .and_then(|p| Utf8PathBuf::from_path_buf(p.into_owned()).ok())
+                .unwrap_or_else(|| cp.to_path_buf())
+                .to_path_buf()
+        };
         let pattern = RollingFile::make_qualified_pattern(&abs_path, pattern_opt);
-        let abs_path_str = abs_path.to_string_lossy();
 
         let trigger = Trigger::Size {
             limit: config::Policy::calculate_maximum_file_size(size)?,
@@ -187,9 +196,7 @@ impl Appender {
             Roller::new_fixed(pattern, count)
         };
         Ok(Self::RollingFile(Arc::new(Mutex::new(RollingFile::new(
-            abs_path_str,
-            trigger,
-            roller,
+            abs_path, trigger, roller,
         )?))))
     }
 
@@ -205,13 +212,13 @@ impl Appender {
                 let mut inner = x.lock();
                 inner
                     .correct_path()
-                    .map_err(|e| Error::PathCorrectionFail(inner.path_str(), e))
+                    .map_err(|e| Error::PathCorrectionFail(inner.get_path().to_owned(), e))
             },
             Self::RollingFile(x) => {
                 let mut inner = x.lock();
                 inner
                     .correct_path()
-                    .map_err(|e| Error::PathCorrectionFail(inner.path_str(), e))
+                    .map_err(|e| Error::PathCorrectionFail(inner.get_path().to_owned(), e))
             },
         }
     }
@@ -227,13 +234,13 @@ impl Appender {
                 let mut inner = x.lock();
                 inner
                     .flush()
-                    .map_err(|e| Error::FlushFail(inner.path_str(), e))
+                    .map_err(|e| Error::FlushFail(inner.get_path().to_owned(), e))
             },
             Self::RollingFile(x) => {
                 let mut inner = x.lock();
                 inner
                     .flush()
-                    .map_err(|e| Error::FlushFail(inner.path_str(), e))
+                    .map_err(|e| Error::FlushFail(inner.get_path().to_owned(), e))
             },
         }
     }
@@ -290,7 +297,7 @@ impl io::Write for Console {
 
 /// An appender which writes to a file.
 pub struct File {
-    path:   PathBuf,
+    path:   Utf8PathBuf,
     writer: LineWriter<fs::File>,
 }
 impl File {
@@ -303,21 +310,26 @@ impl File {
     ///
     /// Note: If the variable fails to resolve, `$ENV{var_name}` will NOT
     /// be replaced in the path.
-    pub fn new(p: impl AsRef<str>) -> Result<Self> {
-        let path = PathBuf::from(expand_env_vars(p.as_ref()).as_ref());
-        let parent: Cow<Path> = path
-            .parent()
-            .map_or_else(|| Cow::Owned(PathBuf::from("/")), Into::into);
+    pub fn new(p: impl AsRef<Utf8Path>) -> Result<Self> {
+        let expanded_path = try_expand_env_vars(p.as_ref());
 
-        fs::create_dir_all(&*parent).map_err(|source| Error::CreateFailed {
-            path: parent.deref().to_owned(),
+        // if there is no parent then we're at the root... which already exists
+        if let Some(parent) = expanded_path.parent() {
+            fs::create_dir_all(parent).map_err(|source| Error::CreateFailed {
+                path: parent.to_owned(),
+                source,
+            })?;
+        }
+
+        let writer = Self::new_writer(&expanded_path).map_err(|source| Error::CreateFailed {
+            path: expanded_path.clone().into_owned(),
             source,
         })?;
-        let writer = Self::new_writer(&path).map_err(|source| Error::CreateFailed {
-            path: path.clone(),
-            source,
-        })?;
-        Ok(Self { path, writer })
+
+        Ok(Self {
+            path: expanded_path.into_owned(),
+            writer,
+        })
     }
 
     /// Verify that the currently open file is still at the original path.
@@ -332,8 +344,13 @@ impl File {
     }
 
     /// Get the target path as a string.
-    pub fn path_str(&self) -> String {
-        self.path.to_string_lossy().to_string()
+    pub fn path_str(&self) -> &str {
+        self.path.as_str()
+    }
+
+    /// Get the target path as a string.
+    pub fn get_path(&self) -> &Utf8Path {
+        &self.path
     }
 
     /// Remount the file at the specified path.
@@ -345,7 +362,7 @@ impl File {
         Ok(())
     }
 
-    fn new_writer(path: &Path) -> io::Result<LineWriter<fs::File>> {
+    fn new_writer(path: &Utf8Path) -> io::Result<LineWriter<fs::File>> {
         let f = fs::File::options().append(true).create(true).open(path)?;
 
         Ok(LineWriter::new(f))

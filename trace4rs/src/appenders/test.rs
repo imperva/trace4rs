@@ -1,14 +1,15 @@
 use std::{
     fs,
     io::Write,
-    path::{
-        Component,
-        Path,
-        PathBuf,
-    },
+    path::Component,
     sync::Arc,
 };
 
+use camino::{
+    Utf8Component,
+    Utf8Path,
+    Utf8PathBuf,
+};
 use parking_lot::Mutex;
 
 use super::rolling::{
@@ -22,11 +23,11 @@ use crate::{
     Appender,
 };
 
-fn get_appender(path: &Path, pattern: &Option<String>) -> Appender {
-    Appender::new_rolling(path.to_str().unwrap(), pattern.as_deref(), 2, "10 B").unwrap()
+fn get_appender(path: &Utf8Path, pattern: &Option<String>) -> Appender {
+    Appender::new_rolling(path.as_str(), pattern.as_deref(), 2, "10 B").unwrap()
 }
 
-fn window_roll(path: &Path, pattern: String, mut appender: Appender) {
+fn window_roll(path: &Utf8Path, pattern: String, mut appender: Appender) {
     let buf1 = "123456789".to_string();
     appender.write_all(buf1.as_bytes()).unwrap();
     appender.flush_io().unwrap();
@@ -47,8 +48,7 @@ fn window_roll(path: &Path, pattern: String, mut appender: Appender) {
         .parent()
         .unwrap()
         .join(&pattern)
-        .to_str()
-        .unwrap()
+        .as_str()
         .replace(FixedWindow::INDEX_TOKEN, &0.to_string());
     println!("content0 path {}", content0_path);
     let content0 = fs::read_to_string(content0_path).unwrap();
@@ -76,8 +76,7 @@ fn window_roll(path: &Path, pattern: String, mut appender: Appender) {
         path.parent()
             .unwrap()
             .join(&pattern)
-            .to_str()
-            .unwrap()
+            .as_str()
             .replace(FixedWindow::INDEX_TOKEN, &0.to_string()),
     )
     .unwrap();
@@ -87,8 +86,7 @@ fn window_roll(path: &Path, pattern: String, mut appender: Appender) {
         path.parent()
             .unwrap()
             .join(&pattern)
-            .to_str()
-            .unwrap()
+            .as_str()
             .replace(FixedWindow::INDEX_TOKEN, &1.to_string()),
     )
     .unwrap();
@@ -101,8 +99,7 @@ fn window_roll(path: &Path, pattern: String, mut appender: Appender) {
         path.parent()
             .unwrap()
             .join(&pattern)
-            .to_str()
-            .unwrap()
+            .as_str()
             .replace(FixedWindow::INDEX_TOKEN, &2.to_string()),
     )
     .expect_err("expected there to never be a third rolled file");
@@ -113,13 +110,13 @@ fn window_roll(path: &Path, pattern: String, mut appender: Appender) {
 // relative path can cause file path length issues, especially on Windows.
 // Therefore these issues are going to manifest in the dirty/non-canonical
 // relative paths first.
-fn as_rel_path(abs_path: &Path) -> PathBuf {
+fn as_rel_path(abs_path: &Utf8Path) -> Utf8PathBuf {
     // The path should be absolute
     assert!(abs_path.is_absolute());
 
     // Get the current dir on the file system
     let current_dir = std::env::current_dir().unwrap();
-    let mut rel_path = PathBuf::new();
+    let mut rel_path = Utf8PathBuf::new();
 
     // Create a relative path that navigates up to the root directory
     for comp in current_dir.components() {
@@ -130,7 +127,7 @@ fn as_rel_path(abs_path: &Path) -> PathBuf {
 
     // Add all of the components from the absolute path
     for comp in abs_path.components() {
-        if let Component::Normal(n) = comp {
+        if let Utf8Component::Normal(n) = comp {
             rel_path = rel_path.join(n);
         }
     }
@@ -208,7 +205,7 @@ fn size_delete_roll() {
 #[test]
 fn size_window_roll() {
     let tmpdir = tempfile::tempdir().unwrap();
-    let path = tmpdir.path().join("foo.log");
+    let path = Utf8Path::from_path(tmpdir.path()).unwrap().join("foo.log");
     let pattern = "foo.log.{}".to_string();
     let appender = get_appender(&path, &Some(pattern.clone()));
     window_roll(&path, pattern, appender);
@@ -217,7 +214,7 @@ fn size_window_roll() {
 #[test]
 fn size_window_roll_no_pattern() {
     let tmpdir = tempfile::tempdir().unwrap();
-    let path = tmpdir.path().join("foo.log");
+    let path = Utf8Path::from_path(tmpdir.path()).unwrap().join("foo.log");
     let pattern = rolling::RollingFile::make_qualified_pattern(&path, None);
     let appender = get_appender(&path, &None);
     window_roll(&path, pattern, appender);
@@ -226,7 +223,7 @@ fn size_window_roll_no_pattern() {
 #[test]
 fn size_window_roll_relative() {
     let tmpdir = tempfile::tempdir().unwrap();
-    let path = tmpdir.path().join("foo.log");
+    let path = Utf8Path::from_path(tmpdir.path()).unwrap().join("foo.log");
     let rel_path = as_rel_path(&path);
     let pattern = "foo.log.{}".to_string();
     let appender = get_appender(&rel_path, &Some(pattern.clone()));
@@ -236,7 +233,7 @@ fn size_window_roll_relative() {
 #[test]
 fn size_window_roll_no_pattern_relative() {
     let tmpdir = tempfile::tempdir().unwrap();
-    let path = tmpdir.path().join("foo.log");
+    let path = Utf8Path::from_path(tmpdir.path()).unwrap().join("foo.log");
     let rel_path = as_rel_path(&path);
     let pattern = rolling::RollingFile::make_qualified_pattern(&path, None);
     let appender = get_appender(&rel_path, &None);
