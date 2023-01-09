@@ -4,6 +4,10 @@
 
 * Externalize utc-offset crate
 
+### Changed
+
+* Migrated all path manipulation to use `camino`.
+
 ## [0.5.0]
 
 ### Added

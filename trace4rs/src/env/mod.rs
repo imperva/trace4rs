@@ -1,5 +1,9 @@
 use std::borrow::Cow;
 
+use camino::{
+    Utf8Path,
+    Utf8PathBuf,
+};
 use regex::Captures;
 
 #[cfg(test)]
@@ -21,4 +25,12 @@ pub(crate) fn expand_env_vars(path: &str) -> Cow<str> {
             c[0].to_string()
         }
     })
+}
+
+pub(crate) fn try_expand_env_vars(p: &Utf8Path) -> Cow<Utf8Path> {
+    let expanded_str = expand_env_vars(p.as_str());
+    match expanded_str {
+        Cow::Borrowed(_) => Cow::Borrowed(p),
+        Cow::Owned(o) => Cow::Owned(Utf8PathBuf::from(o)),
+    }
 }

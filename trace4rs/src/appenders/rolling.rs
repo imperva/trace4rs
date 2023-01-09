@@ -1,21 +1,23 @@
 use std::{
-    borrow::Cow,
-    ffi::OsStr,
     fs,
     io::{
         self,
         LineWriter,
         Write,
     },
-    path::{
-        Path,
-        PathBuf,
-    },
 };
 
-use crate::error::{
-    Error,
-    Result,
+use camino::{
+    Utf8Path,
+    Utf8PathBuf,
+};
+
+use crate::{
+    env::try_expand_env_vars,
+    error::{
+        Error,
+        Result,
+    },
 };
 
 /// `LogFileMeta` allows us to keep track of an estimated length for a given
@@ -91,7 +93,7 @@ impl FixedWindow {
     }
 
     // eas: Idk why im so dumb but this function is _bad_.
-    fn roll(&mut self, path: &Path) -> io::Result<()> {
+    fn roll(&mut self, path: &Utf8Path) -> io::Result<()> {
         // if None, we just need to roll to zero, which happens after this block
         'outer: {
             if let Some(mut c) = self.last {
@@ -150,7 +152,7 @@ impl Roller {
     /// Perform the roll.
     pub fn roll(
         &mut self,
-        path: &Path,
+        path: &Utf8Path,
         writer: &mut Option<LineWriter<fs::File>>,
     ) -> io::Result<()> {
         if let Some(w) = writer {
@@ -171,7 +173,7 @@ impl Roller {
 /// An appender which writes to a file and manages rolling said file, either to
 /// backups or by deletion.
 pub struct RollingFile {
-    path:    PathBuf,
+    path:    Utf8PathBuf,
     /// Writer will always be some except when it is being rolled or if there
     /// was an error initing a new writer after abandonment of the previous.
     writer:  Option<LineWriter<fs::File>>,
@@ -192,25 +194,25 @@ impl RollingFile {
     ///
     /// Note: If the variable fails to resolve, `$ENV{var_name}` will NOT
     /// be replaced in the path.
-    pub fn new(p: impl AsRef<str>, trigger: Trigger, roller: Roller) -> Result<Self> {
-        let path = PathBuf::from(crate::env::expand_env_vars(p.as_ref()).as_ref());
+    pub fn new(p: impl AsRef<Utf8Path>, trigger: Trigger, roller: Roller) -> Result<Self> {
+        let expanded_path = try_expand_env_vars(p.as_ref());
         let (writer, meta) = {
-            let writer = Self::new_writer(&path).map_err(|e| Error::CreateFailed {
-                path:   path.clone(),
+            let writer = Self::new_writer(&expanded_path).map_err(|e| Error::CreateFailed {
+                path:   expanded_path.clone().into_owned(),
                 source: e,
             })?;
             let meta = writer
                 .get_ref()
                 .metadata()
                 .map_err(|e| Error::MetadataFailed {
-                    path:   path.clone(),
+                    path:   expanded_path.clone().into_owned(),
                     source: e,
                 })?;
             (writer, LogFileMeta::from_meta(&meta))
         };
 
         Ok(Self {
-            path,
+            path: expanded_path.into_owned(),
             writer: Some(writer),
             meta,
             trigger,
@@ -230,8 +232,18 @@ impl RollingFile {
     }
 
     /// Get the target path as a string.
-    pub fn path_str(&self) -> String {
-        self.path.to_string_lossy().to_string()
+    pub fn path_str(&self) -> &str {
+        self.path.as_str()
+    }
+
+    /// Get the target path
+    pub fn get_path(&self) -> &Utf8Path {
+        &self.path
+    }
+
+    /// Get the target path buf
+    pub fn get_path_buf(&self) -> Utf8PathBuf {
+        self.path.to_path_buf()
     }
 
     /// Remount the file at the specified path.
@@ -267,20 +279,17 @@ impl RollingFile {
     /// make_qualified_pattern(Path::from("./foo/bar.log"), None); // -> "./foo/bar.log.{}"
     /// make_qualified_pattern(Path::from("./foo/bar.log"), Some("bar_roll.{}")); // -> "./foo/bar_roll.{}"
     /// ```
-    pub(crate) fn make_qualified_pattern(path: &Path, pat_opt: Option<&str>) -> String {
-        let parent = path.parent().unwrap_or_else(|| Path::new("/"));
+    pub(crate) fn make_qualified_pattern(path: &Utf8Path, pat_opt: Option<&str>) -> String {
+        let parent = path.parent().unwrap_or_else(|| Utf8Path::new("/"));
         if let Some(pat) = pat_opt {
-            parent.join(pat).to_string_lossy().to_string()
+            parent.join(pat).to_string()
         } else {
-            let file_name = path.file_name().map_or_else(
-                || Cow::Borrowed(Self::DEFAULT_FILE_NAME),
-                OsStr::to_string_lossy,
-            );
+            let file_name = path.file_name().unwrap_or(Self::DEFAULT_FILE_NAME);
 
             let file_name_pattern =
-                Self::DEFAULT_ROLL_PATTERN.replacen(Self::FILE_NAME_TOKEN, &file_name, 1);
+                Self::DEFAULT_ROLL_PATTERN.replacen(Self::FILE_NAME_TOKEN, file_name, 1);
 
-            parent.join(file_name_pattern).to_string_lossy().to_string()
+            parent.join(file_name_pattern).to_string()
         }
     }
 
@@ -290,7 +299,7 @@ impl RollingFile {
         Ok(())
     }
 
-    fn new_writer(path: &Path) -> io::Result<LineWriter<fs::File>> {
+    fn new_writer(path: &Utf8Path) -> io::Result<LineWriter<fs::File>> {
         let f = fs::File::options().append(true).create(true).open(path)?;
 
         Ok(LineWriter::new(f))
