@@ -236,8 +236,14 @@ impl RollingFile {
         self.path.as_str()
     }
 
+    /// Get the target path
     pub fn get_path(&self) -> &Utf8Path {
         &self.path
+    }
+
+    /// Get the target path buf
+    pub fn get_path_buf(&self) -> Utf8PathBuf {
+        self.path.to_path_buf()
     }
 
     /// Remount the file at the specified path.

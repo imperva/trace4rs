@@ -212,13 +212,13 @@ impl Appender {
                 let mut inner = x.lock();
                 inner
                     .correct_path()
-                    .map_err(|e| Error::PathCorrectionFail(inner.get_path().to_owned(), e))
+                    .map_err(|e| Error::PathCorrectionFail(inner.get_path_buf()(), e))
             },
             Self::RollingFile(x) => {
                 let mut inner = x.lock();
                 inner
                     .correct_path()
-                    .map_err(|e| Error::PathCorrectionFail(inner.get_path().to_owned(), e))
+                    .map_err(|e| Error::PathCorrectionFail(inner.get_path_buf()(), e))
             },
         }
     }
@@ -234,13 +234,13 @@ impl Appender {
                 let mut inner = x.lock();
                 inner
                     .flush()
-                    .map_err(|e| Error::FlushFail(inner.get_path().to_owned(), e))
+                    .map_err(|e| Error::FlushFail(inner.get_path_buf()(), e))
             },
             Self::RollingFile(x) => {
                 let mut inner = x.lock();
                 inner
                     .flush()
-                    .map_err(|e| Error::FlushFail(inner.get_path().to_owned(), e))
+                    .map_err(|e| Error::FlushFail(inner.get_path_buf()(), e))
             },
         }
     }
@@ -343,14 +343,19 @@ impl File {
         Ok(())
     }
 
-    /// Get the target path as a string.
+    /// Get the target path as a str.
     pub fn path_str(&self) -> &str {
         self.path.as_str()
     }
 
-    /// Get the target path as a string.
+    /// Get the target path
     pub fn get_path(&self) -> &Utf8Path {
         &self.path
+    }
+
+    /// Get the target path buf
+    pub fn get_path_buf(&self) -> Utf8PathBuf {
+        self.path.to_path_buf()
     }
 
     /// Remount the file at the specified path.
