@@ -177,9 +177,8 @@ impl Appender {
             let ps = path_str.as_ref();
             let cp = Utf8Path::new(ps);
 
-            let p = Path::new(ps);
-
-            p.absolutize()
+            Path::new(ps)
+                .absolutize()
                 .ok()
                 .and_then(|p| Utf8PathBuf::from_path_buf(p.into_owned()).ok())
                 .unwrap_or_else(|| cp.to_path_buf())
@@ -212,13 +211,13 @@ impl Appender {
                 let mut inner = x.lock();
                 inner
                     .correct_path()
-                    .map_err(|e| Error::PathCorrectionFail(inner.get_path_buf()(), e))
+                    .map_err(|e| Error::PathCorrectionFail(inner.get_path_buf(), e))
             },
             Self::RollingFile(x) => {
                 let mut inner = x.lock();
                 inner
                     .correct_path()
-                    .map_err(|e| Error::PathCorrectionFail(inner.get_path_buf()(), e))
+                    .map_err(|e| Error::PathCorrectionFail(inner.get_path_buf(), e))
             },
         }
     }
@@ -234,13 +233,13 @@ impl Appender {
                 let mut inner = x.lock();
                 inner
                     .flush()
-                    .map_err(|e| Error::FlushFail(inner.get_path_buf()(), e))
+                    .map_err(|e| Error::FlushFail(inner.get_path_buf(), e))
             },
             Self::RollingFile(x) => {
                 let mut inner = x.lock();
                 inner
                     .flush()
-                    .map_err(|e| Error::FlushFail(inner.get_path_buf()(), e))
+                    .map_err(|e| Error::FlushFail(inner.get_path_buf(), e))
             },
         }
     }

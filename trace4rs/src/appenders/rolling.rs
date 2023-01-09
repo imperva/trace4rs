@@ -284,10 +284,10 @@ impl RollingFile {
         if let Some(pat) = pat_opt {
             parent.join(pat).to_string()
         } else {
-            let file_name = path.file_name().unwrap_or_else(|| Self::DEFAULT_FILE_NAME);
+            let file_name = path.file_name().unwrap_or(Self::DEFAULT_FILE_NAME);
 
             let file_name_pattern =
-                Self::DEFAULT_ROLL_PATTERN.replacen(Self::FILE_NAME_TOKEN, &file_name, 1);
+                Self::DEFAULT_ROLL_PATTERN.replacen(Self::FILE_NAME_TOKEN, file_name, 1);
 
             parent.join(file_name_pattern).to_string()
         }
