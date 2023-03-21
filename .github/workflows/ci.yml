@@ -55,16 +55,14 @@ jobs:
     env:
       BENCHER_PROJECT: trace4rs
       BENCHER_TESTBED: ubuntu-latest
-      BENCHER_ADAPTER: rust
-      BENCHER_VERSION: 0.2.27
+      BENCHER_ADAPTER: rust_criterion
       BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
     steps:
       - uses: actions/checkout@v3
-      - name: Install
+      - uses: bencherdev/bencher@v0.2.42
+      - name: Install Nightly
         run: |
           rustup update
           rustup toolchain install nightly
-          wget https://github.com/bencherdev/bencher/releases/download/v${BENCHER_VERSION}/bencher_${BENCHER_VERSION}_amd64.deb
-          sudo dpkg -i bencher_${BENCHER_VERSION}_amd64.deb
       - name: Benchmark with Bencher
-        run: bencher run --if-branch $GITHUB_REF_NAME --err "cargo bench"
+        run: bencher run --token ${{ secrets.BENCHER_API_TOKEN }} --if-branch $GITHUB_REF_NAME --err "cargo bench"
