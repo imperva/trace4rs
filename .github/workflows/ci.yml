@@ -25,9 +25,9 @@ jobs:
 
       - name: Update local toolchain
         run: |
-          rustup component add clippy
           rustup update ${{ matrix.toolchain }}
           rustup default ${{ matrix.toolchain }}
+          rustup component add clippy
 
       - name: Toolchain info
         run: |
