@@ -1,6 +1,6 @@
 [package]
 name = "trace4rs-config"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 description = "trace4rs configuration"
 keywords = ["tracing", "logging", "log4rs"]
