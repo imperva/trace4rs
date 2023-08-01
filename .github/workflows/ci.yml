@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - nightly
+          - nightly-2022-06-25
     steps:
       - uses: actions/checkout@v3
 
