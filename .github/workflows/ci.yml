@@ -27,18 +27,18 @@ jobs:
         run: |
           rustup update ${{ matrix.toolchain }}
           rustup default ${{ matrix.toolchain }}
-          rustup component add clippy rustfmt
+          rustup +${{ matrix.toolchain }} component add clippy rustfmt
 
       - name: Toolchain info
         run: |
-          cargo --version --verbose
-          rustc --version
-          cargo clippy --version
+          cargo +${{ matrix.toolchain }} --version --verbose
+          cargo +${{ matrix.toolchain }} clippy --version
+          cargo +${{ matrix.toolchain }} fmt --version
 
       - name: Lint
         run: |
-          cargo fmt -- --check
-          cargo clippy -- -D warnings
+          cargo +${{ matrix.toolchain }} fmt -- --check
+          cargo +${{ matrix.toolchain }} clippy -- -D warnings
 
   cargo:
     name: Build & Test
@@ -57,21 +57,21 @@ jobs:
 
       - name: Update local toolchain
         run: |
-          rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+          rustup update ${{ matrix.toolchain }}
 
       - name: Toolchain info
         run: |
-          cargo --version --verbose
-          rustc --version
+          cargo +${{ matrix.toolchain }} --version --verbose
+          rustc +${{ matrix.toolchain }} --version
 
       - name: Test
         run: |
-          cargo check
-          cargo test --all ${{ matrix.features_arg }}
+          cargo +${{ matrix.toolchain }} check
+          cargo +${{ matrix.toolchain }} test --all ${{ matrix.features_arg }}
 
       - name: Build
         run: |
-          cargo build ${{ matrix.features_arg }} --release
+          cargo +${{ matrix.toolchain }} build ${{ matrix.features_arg }} --release
 
   benchmark:
     name: Run benchmarks
