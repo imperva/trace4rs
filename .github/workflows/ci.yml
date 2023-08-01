@@ -25,7 +25,9 @@ jobs:
 
       - name: Update local toolchain
         run: |
-          rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+          rustup component add clippy
+          rustup update ${{ matrix.toolchain }}
+          rustup default ${{ matrix.toolchain }}
 
       - name: Toolchain info
         run: |
@@ -61,7 +63,6 @@ jobs:
         run: |
           cargo --version --verbose
           rustc --version
-          cargo clippy --version
 
       - name: Test
         run: |
