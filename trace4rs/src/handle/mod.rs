@@ -77,8 +77,8 @@ impl Handle {
     /// - An io error occurred in flushing output.
     /// - We were unable to update the subscriber.
     pub fn flush(&self) -> Result<()> {
-        let h = self.reload_handle.borrow();
-        h.with_current(|ls| ls.appenders().flush())??;
+        self.reload_handle
+            .with_current(|ls| ls.appenders().flush())??;
         Ok(())
     }
 
@@ -89,7 +89,6 @@ impl Handle {
     /// - Re-mounting a file has failed.
     pub fn correct_appender_paths(&self) -> Result<()> {
         self.reload_handle
-            .borrow()
             .with_current(Layers::correct_appender_paths)??;
         Ok(())
     }
