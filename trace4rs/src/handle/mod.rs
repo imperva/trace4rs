@@ -1,16 +1,10 @@
-use std::{
-    borrow::Borrow,
-    convert::TryFrom,
-};
+use std::convert::TryFrom;
 
 use tracing_subscriber::reload;
 
 use crate::{
     config::Config,
-    error::{
-        Error,
-        Result,
-    },
+    error::{Error, Result},
 };
 
 mod layers;
@@ -28,8 +22,8 @@ pub use trace_logger::TraceLogger;
 #[derive(Clone)]
 pub struct Handle {
     reload_handle: reload::Handle<Layers<SpanBroker>, SpanBroker>,
-    trace_logger:  TraceLogger,
-    broker:        SpanBroker,
+    trace_logger: TraceLogger,
+    broker: SpanBroker,
 }
 
 /// Initializes the default `trace4rs` handle as the `tracing` global default.
