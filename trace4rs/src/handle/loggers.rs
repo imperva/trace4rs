@@ -6,7 +6,6 @@ use std::{
 };
 
 use once_cell::sync::Lazy;
-use time::UtcOffset;
 use tracing::{
     field::Visit,
     metadata::LevelFilter,
@@ -57,7 +56,6 @@ use crate::{
 const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
     time::format_description::well_known::Rfc3339;
 
-static UTC_OFFSET: Lazy<UtcOffset> = Lazy::new(utc_offset::get_local_offset);
 static NORMAL_FMT: Lazy<Format<Full, UtcOffsetTime>> =
     Lazy::new(|| Format::default().with_timer(UtcOffsetTime).with_ansi(false));
 
@@ -226,7 +224,9 @@ struct CustomValueWriter<'ctx, 'evt> {
 impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
     fn format_timestamp(mut writer: format::Writer<'_>) -> fmt::Result {
         use tracing_subscriber::fmt::time::OffsetTime;
-        let t = OffsetTime::new(*UTC_OFFSET, TIME_FORMAT);
+
+        let (o, _) = utc_offset::get_utc_offset();
+        let t = OffsetTime::new(o, TIME_FORMAT);
         t.format_time(&mut writer)
     }
 
@@ -330,7 +330,9 @@ struct UtcOffsetTime;
 impl FormatTime for UtcOffsetTime {
     fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
         use tracing_subscriber::fmt::time::OffsetTime;
-        let t = OffsetTime::new(*UTC_OFFSET, TIME_FORMAT);
+
+        let (o, _) = utc_offset::get_utc_offset();
+        let t = OffsetTime::new(o, TIME_FORMAT);
         t.format_time(w)
     }
 }

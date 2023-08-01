@@ -6,6 +6,7 @@ description = "Torpid formatting for trace4rs"
 license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
 
 [dependencies]
 thiserror = "1.0.33"

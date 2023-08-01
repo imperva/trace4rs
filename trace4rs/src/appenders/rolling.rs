@@ -95,13 +95,26 @@ impl FixedWindow {
     // eas: Idk why im so dumb but this function is _bad_.
     fn roll(&mut self, path: &Utf8Path) -> io::Result<()> {
         // if None, we just need to roll to zero, which happens after this block
-        'outer: {
+
+        // see todo below
+        // 'outer: {
+        {
             if let Some(mut c) = self.last {
                 // holding max rolls, saturation should be fine
                 if c.saturating_add(1) == self.count {
                     // if Some(0) and 1 = self.count we skip
                     if c == 0 {
-                        break 'outer;
+                        // todo: uncomment the following break and delete everything
+                        // after it in block once we can use `feature(label_break_value)`
+
+                        // break 'outer;
+                        self.inc_last();
+
+                        let new_path = self
+                            .pattern
+                            .replace(Self::INDEX_TOKEN, &Self::COUNT_BASE.to_string());
+
+                        return fs::rename(path, new_path);
                     }
                     // We skip the last file if we're at the max so it'll get overwritten.
                     c = c.saturating_sub(1);

@@ -1,4 +1,3 @@
-#![feature(label_break_value)]
 //! This crate allows users to configure output from
 //! [`tracing`](docs.rs/tracing) in the same way as you would configure the
 //! output of [`log4rs`](docs.rs/log4rs).
