@@ -33,6 +33,7 @@ trace4rs-config = { version = "0.5.0", path = "../trace4rs-config" }
 trace4rs-fmtorp = { version = "0.5.0", path = "../trace4rs-fmtorp" }
 utc-offset = "0.3.0"
 camino = "1.1.2"
+rustversion = "1.0.14"
 
 [dev-dependencies]
 criterion = "0.4.0"

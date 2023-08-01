@@ -12,10 +12,34 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - nightly
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Update local toolchain
+        run: |
+          rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+
+      - name: Toolchain info
+        run: |
+          cargo --version --verbose
+          rustc --version
+          cargo clippy --version
+
+      - name: Lint
+        run: |
+          cargo fmt -- --check
+          cargo clippy -- -D warnings
+
   cargo:
-    name: Lint, Build, and Test
+    name: Build & Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -38,11 +62,6 @@ jobs:
           cargo --version --verbose
           rustc --version
           cargo clippy --version
-
-      - name: Lint
-        run: |
-          cargo fmt -- --check
-          cargo clippy -- -D warnings
 
       - name: Test
         run: |

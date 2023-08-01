@@ -1,4 +1,4 @@
-#![feature(label_break_value)]
+#![cfg_attr(feature = "nightly", feature(label_break_value))]
 //! This crate allows users to configure output from
 //! [`tracing`](docs.rs/tracing) in the same way as you would configure the
 //! output of [`log4rs`](docs.rs/log4rs).
@@ -23,13 +23,5 @@ pub mod error;
 mod test;
 
 pub use appenders::Appender;
-pub use handle::{
-    init_console_logger,
-    Handle,
-    TraceLogger,
-};
-pub use trace4rs_config::{
-    config,
-    config::Config,
-    error::Error as ConfigError,
-};
+pub use handle::{init_console_logger, Handle, TraceLogger};
+pub use trace4rs_config::{config, config::Config, error::Error as ConfigError};
