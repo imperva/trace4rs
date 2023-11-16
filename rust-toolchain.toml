@@ -1,3 +1,2 @@
 [toolchain]
-channel = "nightly-2022-06-25"
-profile = "default"
+channel = "stable"

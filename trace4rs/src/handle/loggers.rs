@@ -1,56 +1,28 @@
 #![allow(clippy::single_char_lifetime_names)]
 use core::fmt;
-use std::{
-    borrow::Cow,
-    io,
-};
+use std::{borrow::Cow, io};
 
 use once_cell::sync::Lazy;
-use tracing::{
-    field::Visit,
-    metadata::LevelFilter,
-    Event,
-    Metadata,
-};
+use trace4rs_fmtorp::FieldValueWriter;
+use tracing::{field::Visit, metadata::LevelFilter, Event, Metadata, Subscriber};
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{
     fmt::{
-        format::{
-            self,
-            DefaultFields,
-            Format,
-            Full,
-            Writer,
-        },
+        format::{self, DefaultFields, Format, Full, Writer},
         time::FormatTime,
-        writer::{
-            BoxMakeWriter,
-            MakeWriterExt,
-        },
-        FmtContext,
-        FormatEvent,
-        FormatFields,
-        Layer as FmtLayer,
+        writer::{BoxMakeWriter, MakeWriterExt},
+        FmtContext, FormatEvent, FormatFields, Layer as FmtLayer,
     },
-    layer::{
-        Context,
-        Layered,
-    },
+    layer::{Context, Layered},
     prelude::__tracing_subscriber_SubscriberExt,
-    Layer,
+    registry::LookupSpan,
+    Layer, Registry,
 };
 
-use super::{
-    span_broker::SpanBroker,
-    PolyLayer,
-};
+use super::PolyLayer;
 use crate::{
     appenders::Appenders,
-    config::{
-        AppenderId,
-        Format as ConfigFormat,
-        Target,
-    },
+    config::{AppenderId, Format as ConfigFormat, Target},
 };
 
 const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
@@ -59,30 +31,12 @@ const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
 static NORMAL_FMT: Lazy<Format<Full, UtcOffsetTime>> =
     Lazy::new(|| Format::default().with_timer(UtcOffsetTime).with_ansi(false));
 
-pub struct Logger<N = DefaultFields, F = EventFormatter> {
-    level:  LevelFilter,
+pub struct Logger<Reg = Registry, N = DefaultFields, F = EventFormatter> {
+    level: LevelFilter,
     target: Option<Target>,
-    layer:  Layered<FmtLayer<SpanBroker, N, F, BoxMakeWriter>, SpanBroker>,
+    layer: Layered<FmtLayer<Reg, N, F, BoxMakeWriter>, Reg>,
 }
-impl Logger {
-    pub fn new_erased<'a>(
-        r: SpanBroker,
-        level: LevelFilter,
-        target: Option<Target>,
-        ids: impl IntoIterator<Item = &'a AppenderId>,
-        appenders: &Appenders,
-        format: EventFormatter,
-    ) -> PolyLayer<SpanBroker> {
-        Box::new(Self::new(
-            r,
-            level,
-            target,
-            ids.into_iter(),
-            appenders,
-            format,
-        ))
-    }
-
+impl<B> Logger<B> {
     fn is_enabled(&self, meta: &Metadata<'_>) -> bool {
         let match_level = meta.level() <= &self.level;
         let match_target = self
@@ -91,6 +45,29 @@ impl Logger {
             .map_or(true, |t| meta.target().starts_with(t.as_str()));
 
         match_level && match_target
+    }
+}
+impl Logger {
+    pub fn new_erased<'a, B>(
+        b: B,
+        level: LevelFilter,
+        target: Option<Target>,
+        ids: impl IntoIterator<Item = &'a AppenderId>,
+        appenders: &Appenders,
+        format: EventFormatter,
+    ) -> PolyLayer<B>
+    where
+        B: Subscriber + Send + Sync + for<'b> LookupSpan<'b>,
+        Logger<B>: Layer<B>,
+    {
+        Box::new(Self::new(
+            b,
+            level,
+            target,
+            ids.into_iter(),
+            appenders,
+            format,
+        ))
     }
 
     fn mk_writer<'a>(
@@ -110,35 +87,44 @@ impl Logger {
         accumulated_makewriter
     }
 
-    pub fn new<'a>(
-        r: SpanBroker,
+    pub fn new<'a, B>(
+        r: B,
         level: LevelFilter,
         target: Option<Target>,
         ids: impl Iterator<Item = &'a AppenderId>,
         appenders: &Appenders,
         format: EventFormatter,
-    ) -> Self {
+    ) -> Logger<B, DefaultFields, EventFormatter>
+    where
+        B: Subscriber + Send + Sync + for<'b> LookupSpan<'b>,
+        tracing_subscriber::fmt::Layer<B, DefaultFields, EventFormatter, BoxMakeWriter>: Layer<B>,
+    {
         let writer =
             Self::mk_writer(ids, appenders).unwrap_or_else(|| BoxMakeWriter::new(io::sink));
 
         let fmt_layer = FmtLayer::default().event_format(format).with_ansi(false);
         let append_layer = fmt_layer.with_writer(writer);
+        // let layer = append_layer;
         let layer = r.with(append_layer);
 
-        Self {
+        Logger {
             level,
             target,
             layer,
         }
     }
 }
-impl Layer<SpanBroker> for Logger {
-    fn enabled(&self, meta: &Metadata<'_>, _ctx: Context<'_, SpanBroker>) -> bool {
+impl<Sub> Layer<Sub> for Logger<Sub>
+where
+    Sub: Subscriber,
+    FmtLayer<Sub, DefaultFields, EventFormatter, BoxMakeWriter>: Layer<Sub>,
+{
+    fn enabled(&self, meta: &Metadata<'_>, _ctx: Context<'_, Sub>) -> bool {
         Logger::is_enabled(self, meta)
     }
 
-    fn on_event(&self, event: &Event<'_>, ctx: Context<'_, SpanBroker>) {
-        self.layer.on_event(event, ctx);
+    fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, Sub>) {
+        self.layer.event(event);
     }
 }
 
@@ -177,11 +163,14 @@ impl From<ConfigFormat> for EventFormatter {
     }
 }
 
-impl FormatEvent<SpanBroker, DefaultFields> for EventFormatter {
+impl<'w, 'ctx, 'evt, S> FormatEvent<S, DefaultFields> for EventFormatter
+where
+    S: Subscriber + for<'b> LookupSpan<'b>,
+{
     fn format_event(
         &self,
-        ctx: &tracing_subscriber::fmt::FmtContext<'_, SpanBroker, DefaultFields>,
-        writer: tracing_subscriber::fmt::format::Writer<'_>,
+        ctx: &FmtContext<'_, S, DefaultFields>,
+        writer: Writer<'_>,
         event: &Event<'_>,
     ) -> std::fmt::Result {
         match self {
@@ -217,11 +206,11 @@ mod fields {
         });
 }
 
-struct CustomValueWriter<'ctx, 'evt> {
-    ctx:   &'ctx FmtContext<'ctx, SpanBroker, DefaultFields>,
+struct CustomValueWriter<'ctx, 'evt, Broker> {
+    ctx: &'ctx FmtContext<'ctx, Broker, DefaultFields>,
     event: &'evt Event<'evt>,
 }
-impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
+impl<'ctx, 'evt, Broker> CustomValueWriter<'ctx, 'evt, Broker> {
     fn format_timestamp(mut writer: format::Writer<'_>) -> fmt::Result {
         use tracing_subscriber::fmt::time::OffsetTime;
 
@@ -235,7 +224,11 @@ impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
         t.format_time(&mut writer)
     }
 }
-impl<'ctx, 'evt> trace4rs_fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
+impl<'ctx, 'evt, Broker> FieldValueWriter for CustomValueWriter<'ctx, 'evt, Broker>
+where
+    Broker: 'static,
+    for<'writer> FmtContext<'ctx, Broker, DefaultFields>: FormatFields<'writer>,
+{
     fn write_value(&self, mut writer: format::Writer<'_>, field: &'static str) -> fmt::Result {
         let normalized_meta = self.event.normalized_metadata();
         let meta = normalized_meta
@@ -278,12 +271,15 @@ impl CustomFormatter {
         Ok(Self { fmtr })
     }
 
-    fn format_event(
+    fn format_event<'ctx, 'evt, 'w, S>(
         &self,
-        ctx: &FmtContext<'_, SpanBroker, DefaultFields>,
-        writer: Writer<'_>,
-        event: &Event<'_>,
-    ) -> fmt::Result {
+        ctx: &FmtContext<'ctx, S, DefaultFields>,
+        writer: Writer<'w>,
+        event: &Event<'evt>,
+    ) -> fmt::Result
+    where
+        S: Subscriber + for<'b> LookupSpan<'b>,
+    {
         let value_writer = CustomValueWriter { ctx, event };
         self.fmtr.write(writer, &value_writer)
     }
@@ -292,16 +288,12 @@ impl CustomFormatter {
 const MESSAGE_FIELD_NAME: &str = "message";
 
 struct SingleFieldVisitor<'w> {
-    newline:    bool,
-    writer:     tracing_subscriber::fmt::format::Writer<'w>,
+    newline: bool,
+    writer: Writer<'w>,
     field_name: Cow<'static, str>,
 }
 impl<'w> SingleFieldVisitor<'w> {
-    fn new(
-        newline: bool,
-        writer: tracing_subscriber::fmt::format::Writer<'w>,
-        field_name: impl Into<Cow<'static, str>>,
-    ) -> Self {
+    fn new(newline: bool, writer: Writer<'w>, field_name: impl Into<Cow<'static, str>>) -> Self {
         Self {
             newline,
             writer,

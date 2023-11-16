@@ -34,6 +34,9 @@ trace4rs-fmtorp = { version = "0.5.1", path = "../trace4rs-fmtorp" }
 utc-offset = "0.3.0"
 camino = "1.1.2"
 rustversion = "1.0.14"
+tracing-tree = { version = "0.3.0", features = ["time"] }
+ambassador = "0.3.5"
+derive-where = "1.2.5"
 
 [dev-dependencies]
 criterion = "0.4.0"
