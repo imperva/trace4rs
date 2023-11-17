@@ -13,11 +13,11 @@ mod trace_logger;
 
 use layers::T4Layer;
 use shared_registry::SharedRegistry;
-pub use trace_logger::TraceLogger;
+pub use trace_logger::ExtraTraceLogger;
 
-use self::loggers::Logger;
+pub use self::{loggers::Logger, trace_logger::TraceLogger};
 
-/// The reloadable handle for a `TraceLogger`, with this we can modify the
+/// The reloadable handle for a `ExtraTraceLogger`, with this we can modify the
 /// logging configuration at runtime.
 #[derive_where(Clone)]
 pub struct Handle<Reg = SharedRegistry> {
@@ -46,7 +46,7 @@ where
     }
 
     #[must_use]
-    pub fn new() -> (Handle<Reg>, TraceLogger<Reg>) {
+    pub fn new() -> (Handle<Reg>, ExtraTraceLogger<Reg>) {
         let layers = T4Layer::default();
 
         Handle::from_layers(layers)
@@ -112,7 +112,7 @@ where
     /// # Errors
     /// This could fail building the appenders in the config, for example
     /// opening a file for write.
-    pub fn from_config(config: &Config) -> Result<(Handle<Reg>, TraceLogger<Reg>)>
+    pub fn from_config(config: &Config) -> Result<(Handle<Reg>, ExtraTraceLogger<Reg>)>
     where
         Reg: Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
     {
@@ -121,12 +121,12 @@ where
     }
 
     /// Builds `Self` from `Layers` and the backing `Reg`.
-    fn from_layers(layers: T4Layer<Reg>) -> (Handle<Reg>, TraceLogger<Reg>)
+    fn from_layers(layers: T4Layer<Reg>) -> (Handle<Reg>, ExtraTraceLogger<Reg>)
     where
         Reg: Subscriber + Send + Sync,
     {
         let (reloadable, reload_handle) = reload::Layer::new(layers);
-        let trace_logger = TraceLogger::new(Reg::default(), reloadable);
+        let trace_logger = TraceLogger::new_extra(Reg::default(), reloadable);
 
         (
             Handle {

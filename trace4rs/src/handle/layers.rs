@@ -1,4 +1,4 @@
-use tracing::{metadata::LevelFilter, Event, Level, Subscriber};
+use tracing::{metadata::LevelFilter, Event, Subscriber};
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{
     fmt::{format::DefaultFields, writer::BoxMakeWriter, Layer as FmtLayer},
@@ -17,13 +17,10 @@ use crate::{
     error::Result,
 };
 
-type DynLayer<S> = Box<dyn Layer<S> + Send + Sync>;
-
 pub struct T4Layer<S = SharedRegistry> {
     enabled: bool,
     default: Logger<S>,
     loggers: Vec<Logger<S>>,
-    extra: Vec<Box<dyn Layer<S> + Send + Sync>>,
     appenders: Appenders,
 }
 
@@ -58,7 +55,7 @@ impl T4Layer {
             EventFormatter::Normal,
         );
 
-        T4Layer::new(default, vec![], appenders, Self::mk_extra())
+        T4Layer::new(default, vec![], appenders)
     }
 
     /// Create a new `Layers` from a default layer and a pre-generated vec of
@@ -67,14 +64,12 @@ impl T4Layer {
         default: Logger<Reg>,
         loggers: Vec<Logger<Reg>>,
         appenders: Appenders,
-        extra: Vec<DynLayer<Reg>>,
     ) -> T4Layer<Reg> {
         T4Layer {
             enabled: true,
             default,
             loggers,
             appenders,
-            extra,
         }
     }
 
@@ -110,28 +105,7 @@ impl T4Layer {
             config.default.format.clone().into(),
         );
 
-        Ok(T4Layer::new(default, layers, appenders, Self::mk_extra()))
-    }
-    fn mk_extra<Reg>() -> Vec<DynLayer<Reg>>
-    where
-        Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
-    {
-        let layer = tracing_tree::HierarchicalLayer::default()
-            .with_indent_lines(true)
-            .with_indent_amount(2)
-            .with_thread_names(true)
-            .with_thread_ids(true)
-            .with_verbose_exit(true)
-            .with_verbose_entry(true)
-            .with_targets(true)
-            .with_higher_precision(true);
-
-        let filter = tracing_subscriber::filter::targets::Targets::new()
-            .with_target("rasp_ffi", Level::TRACE);
-
-        let filtered = layer.with_filter(filter);
-
-        vec![Box::new(filtered) as DynLayer<Reg>]
+        Ok(T4Layer::new(default, layers, appenders))
     }
 }
 
@@ -166,11 +140,6 @@ where
             let enabled = layer.enabled(metadata, ctx.clone());
             any |= enabled;
             if enabled {
-                layer.on_event(event, ctx.clone());
-            }
-        }
-        for layer in &self.extra {
-            if layer.enabled(metadata, ctx.clone()) {
                 layer.on_event(event, ctx.clone());
             }
         }
