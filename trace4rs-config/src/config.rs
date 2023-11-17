@@ -11,7 +11,6 @@ use std::{
 use schemars::JsonSchema;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use smart_default::SmartDefault;
 use tracing::level_filters;
 
 use crate::error::{Error, Result};
@@ -44,14 +43,14 @@ pub struct Config {
 /// # Errors
 /// Returns an error if serialization fails
 #[cfg(feature = "in-order-serialization")]
-pub fn ordered_map<K, V, S>(
-    value: &HashMap<K, V>,
-    serializer: S,
-) -> std::result::Result<S::Ok, S::Error>
+pub fn ordered_map<K, V, Rs, Ser>(
+    value: &HashMap<K, V, Rs>,
+    serializer: Ser,
+) -> std::result::Result<Ser::Ok, Ser::Error>
 where
     K: Ord + Serialize,
     V: Serialize,
-    S: Serializer,
+    Ser: Serializer,
 {
     let ordered: std::collections::BTreeMap<_, _> = value.iter().collect();
     ordered.serialize(serializer)
@@ -60,7 +59,10 @@ where
 /// # Errors
 /// Returns an error if serialization fails
 #[cfg(feature = "in-order-serialization")]
-pub fn ordered_set<K, S>(value: &HashSet<K>, serializer: S) -> std::result::Result<S::Ok, S::Error>
+pub fn ordered_set<K, S, Rs>(
+    value: &HashSet<K, Rs>,
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error>
 where
     K: Ord + Serialize,
     S: Serializer,
@@ -216,7 +218,7 @@ mod format {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, SmartDefault)]
+#[derive(PartialEq, Eq, Clone, Debug, Default)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),

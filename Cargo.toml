@@ -20,7 +20,6 @@ categories = ["development-tools"]
 all = "warn"                          # correctness, sus, style, complexity, perf
 pedantic = "warn"
 cargo = "warn"
-absolute_paths = "warn"
 assertions_on_result_states = "warn"
 arithmetic_side_effects = "warn"
 create_dir = "warn"
@@ -60,3 +59,6 @@ verbose_file_reads = "warn"
 # Enable when stabilized
 # allow_attributes = "warn"
 # allow_attributes_without_reason = "warn"
+
+# Unsure of
+# absolute_paths = "warn"

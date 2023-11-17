@@ -141,7 +141,7 @@ impl From<ConfigFormat> for EventFormatter {
     }
 }
 
-impl<'w, 'ctx, 'evt, S> FormatEvent<S, DefaultFields> for EventFormatter
+impl<S> FormatEvent<S, DefaultFields> for EventFormatter
 where
     S: Subscriber + for<'b> LookupSpan<'b>,
 {
@@ -287,9 +287,9 @@ impl<'w> Visit for SingleFieldVisitor<'w> {
         #[allow(unused_must_use, clippy::use_debug)]
         if field.name() == self.field_name {
             if self.newline {
-                writeln!(self.writer, "{:?}", value);
+                writeln!(self.writer, "{value:?}");
             } else {
-                write!(self.writer, "{:?}", value);
+                write!(self.writer, "{value:?}");
             }
         }
     }

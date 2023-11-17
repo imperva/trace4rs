@@ -2,40 +2,26 @@
 use std::{
     collections::HashMap,
     convert::TryFrom,
-    fs::{self,},
-    io::{
-        self,
-        LineWriter,
-        Write,
-    },
+    fs::{self},
+    io::{self, LineWriter, Write},
     ops::Deref,
     path::Path,
     sync::Arc,
 };
 
-use camino::{
-    Utf8Path,
-    Utf8PathBuf,
-};
+use camino::{Utf8Path, Utf8PathBuf};
 use parking_lot::Mutex;
 use path_absolutize::Absolutize;
 use tracing_subscriber::fmt::MakeWriter;
 
 use crate::{
-    config::{
-        self,
-        AppenderId,
-        Policy,
-    },
+    config::{self, AppenderId, Policy},
     env::try_expand_env_vars,
-    error::{
-        Error,
-        Result,
-    },
+    error::{Error, Result},
 };
 
 mod rolling;
-use rolling::RollingFile;
+use rolling::Rolling;
 
 #[cfg(test)]
 mod test;
@@ -84,7 +70,7 @@ impl Deref for Appenders {
     type Target = AppenderMap;
 
     fn deref(&self) -> &Self::Target {
-        &*self.appenders
+        &self.appenders
     }
 }
 impl TryFrom<&HashMap<AppenderId, config::Appender>> for Appenders {
@@ -133,7 +119,7 @@ pub enum Appender {
     /// A file appender.
     File(Arc<Mutex<File>>),
     /// A file appender which rolls files.
-    RollingFile(Arc<Mutex<RollingFile>>),
+    RollingFile(Arc<Mutex<Rolling>>),
     /// Logs are ignored
     Null,
 }
@@ -169,10 +155,7 @@ impl Appender {
         count: usize,
         size: &str,
     ) -> Result<Self> {
-        use rolling::{
-            Roller,
-            Trigger,
-        };
+        use rolling::{Roller, Trigger};
         let abs_path = {
             let ps = path_str.as_ref();
             let cp = Utf8Path::new(ps);
@@ -184,7 +167,7 @@ impl Appender {
                 .unwrap_or_else(|| cp.to_path_buf())
                 .to_path_buf()
         };
-        let pattern = RollingFile::make_qualified_pattern(&abs_path, pattern_opt);
+        let pattern = Rolling::make_qualified_pattern(&abs_path, pattern_opt);
 
         let trigger = Trigger::Size {
             limit: config::Policy::calculate_maximum_file_size(size)?,
@@ -194,7 +177,7 @@ impl Appender {
         } else {
             Roller::new_fixed(pattern, count)
         };
-        Ok(Self::RollingFile(Arc::new(Mutex::new(RollingFile::new(
+        Ok(Self::RollingFile(Arc::new(Mutex::new(Rolling::new(
             abs_path, trigger, roller,
         )?))))
     }
@@ -281,7 +264,7 @@ impl io::Write for Appender {
 pub struct Console;
 impl Console {
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 }
 impl io::Write for Console {
@@ -296,7 +279,7 @@ impl io::Write for Console {
 
 /// An appender which writes to a file.
 pub struct File {
-    path:   Utf8PathBuf,
+    path: Utf8PathBuf,
     writer: LineWriter<fs::File>,
 }
 impl File {

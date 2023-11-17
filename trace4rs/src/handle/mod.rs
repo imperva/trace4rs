@@ -2,12 +2,7 @@ use std::sync::Arc;
 
 use derive_where::derive_where;
 use tracing::Subscriber;
-use tracing_subscriber::{
-    layer::{Layer, Layered},
-    registry::LookupSpan,
-    reload,
-};
-use tracing_tree::HierarchicalLayer;
+use tracing_subscriber::{layer::Layer, registry::LookupSpan, reload};
 
 use crate::{config::Config, error::Result};
 
@@ -16,19 +11,17 @@ mod loggers;
 mod shared_registry;
 mod trace_logger;
 
-use layers::Trace4Layers;
+use layers::T4Layer;
 use shared_registry::SharedRegistry;
 pub use trace_logger::TraceLogger;
 
 use self::loggers::Logger;
 
-pub type StandardHandle = Handle;
-
 /// The reloadable handle for a `TraceLogger`, with this we can modify the
 /// logging configuration at runtime.
 #[derive_where(Clone)]
 pub struct Handle<Reg = SharedRegistry> {
-    reload_handle: Arc<reload::Handle<Trace4Layers<Reg>, Reg>>,
+    reload_handle: Arc<reload::Handle<T4Layer<Reg>, Reg>>,
 }
 
 /// Initializes the default `trace4rs` handle as the `tracing` global default.
@@ -40,20 +33,21 @@ pub fn init_console_logger() -> Result<Handle> {
     tracing::subscriber::set_global_default(t)?;
     Ok(h)
 }
-pub type HierarchicalHandle = Handle<Layered<HierarchicalLayer, SharedRegistry>>;
 
 impl<Reg> Handle<Reg>
 where
     Reg: Layer<Reg> + Subscriber + Send + Sync + Default + for<'s> LookupSpan<'s>,
     Logger<Reg>: Layer<Reg>,
 {
+    #[must_use]
     pub fn unit() -> Self {
-        let (handle, layer) = Handle::from_layers(Trace4Layers::default());
+        let (handle, _layer) = Handle::from_layers(T4Layer::default());
         handle
     }
 
+    #[must_use]
     pub fn new() -> (Handle<Reg>, TraceLogger<Reg>) {
-        let layers = Trace4Layers::default();
+        let layers = T4Layer::default();
 
         Handle::from_layers(layers)
     }
@@ -65,7 +59,7 @@ where
     /// - We were unable to update the subscriber.
     pub fn disable(&self) -> Result<()> {
         self.reload_handle
-            .modify(Trace4Layers::disable)
+            .modify(T4Layer::disable)
             .map_err(Into::into)
     }
 
@@ -76,7 +70,7 @@ where
     /// - We were unable to update the subscriber.
     pub fn enable(&self) -> Result<()> {
         self.reload_handle
-            .modify(Trace4Layers::enable)
+            .modify(T4Layer::enable)
             .map_err(Into::into)
     }
 
@@ -98,7 +92,7 @@ where
     /// - Re-mounting a file has failed.
     pub fn correct_appender_paths(&self) -> Result<()> {
         self.reload_handle
-            .with_current(Trace4Layers::correct_appender_paths)??;
+            .with_current(T4Layer::correct_appender_paths)??;
         Ok(())
     }
 
@@ -109,7 +103,7 @@ where
     /// - Building the appenders in the config, for example
     /// opening a file for write.
     pub fn update(&mut self, config: &Config) -> Result<()> {
-        let ls = Trace4Layers::from_config(config)?;
+        let ls = T4Layer::from_config(config)?;
         Ok(self.reload_handle.reload(ls)?)
     }
 
@@ -122,12 +116,12 @@ where
     where
         Reg: Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
     {
-        let layers: Trace4Layers<Reg> = Trace4Layers::from_config(config)?;
+        let layers: T4Layer<Reg> = T4Layer::from_config(config)?;
         Ok(Self::from_layers(layers))
     }
 
     /// Builds `Self` from `Layers` and the backing `Reg`.
-    fn from_layers(layers: Trace4Layers<Reg>) -> (Handle<Reg>, TraceLogger<Reg>)
+    fn from_layers(layers: T4Layer<Reg>) -> (Handle<Reg>, TraceLogger<Reg>)
     where
         Reg: Subscriber + Send + Sync,
     {

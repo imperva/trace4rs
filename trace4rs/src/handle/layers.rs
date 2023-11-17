@@ -19,7 +19,7 @@ use crate::{
 
 type DynLayer<S> = Box<dyn Layer<S> + Send + Sync>;
 
-pub struct Trace4Layers<S = SharedRegistry> {
+pub struct T4Layer<S = SharedRegistry> {
     enabled: bool,
     default: Logger<S>,
     loggers: Vec<Logger<S>>,
@@ -27,7 +27,7 @@ pub struct Trace4Layers<S = SharedRegistry> {
     appenders: Appenders,
 }
 
-impl<S> Trace4Layers<S> {
+impl<S> T4Layer<S> {
     /// If the files which are the target of appenders have been moved we
     /// abandon the moved files and remount at the correct path.
     pub fn correct_appender_paths(&self) -> Result<()> {
@@ -39,10 +39,10 @@ impl<S> Trace4Layers<S> {
     }
 }
 
-impl Trace4Layers {
+impl T4Layer {
     /// The default `Layers` backed by `broker` (`INFO` and above goes to
     /// stdout).
-    pub fn default<Reg>() -> Trace4Layers<Reg>
+    pub fn default<Reg>() -> T4Layer<Reg>
     where
         Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
         Logger<Reg>: Layer<Reg>,
@@ -53,12 +53,12 @@ impl Trace4Layers {
         let default = Logger::new(
             LevelFilter::INFO,
             None,
-            (&[stdout_appender]).into_iter(),
+            [stdout_appender].iter(),
             &appenders,
             EventFormatter::Normal,
         );
 
-        Trace4Layers::new(default, vec![], appenders, Self::mk_extra())
+        T4Layer::new(default, vec![], appenders, Self::mk_extra())
     }
 
     /// Create a new `Layers` from a default layer and a pre-generated vec of
@@ -68,8 +68,8 @@ impl Trace4Layers {
         loggers: Vec<Logger<Reg>>,
         appenders: Appenders,
         extra: Vec<DynLayer<Reg>>,
-    ) -> Trace4Layers<Reg> {
-        Trace4Layers {
+    ) -> T4Layer<Reg> {
+        T4Layer {
             enabled: true,
             default,
             loggers,
@@ -82,7 +82,7 @@ impl Trace4Layers {
     ///
     /// # Errors
     /// An error may occur while building the appenders.
-    pub fn from_config<Reg>(config: &Config) -> Result<Trace4Layers<Reg>>
+    pub fn from_config<Reg>(config: &Config) -> Result<T4Layer<Reg>>
     where
         Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
         Logger<Reg>: Layer<Reg>,
@@ -110,12 +110,7 @@ impl Trace4Layers {
             config.default.format.clone().into(),
         );
 
-        Ok(Trace4Layers::new(
-            default,
-            layers,
-            appenders,
-            Self::mk_extra(),
-        ))
+        Ok(T4Layer::new(default, layers, appenders, Self::mk_extra()))
     }
     fn mk_extra<Reg>() -> Vec<DynLayer<Reg>>
     where
@@ -140,7 +135,7 @@ impl Trace4Layers {
     }
 }
 
-impl<S> Trace4Layers<S> {
+impl<S> T4Layer<S> {
     /// Disable this subscriber.
     pub fn disable(&mut self) {
         self.enabled = false;
@@ -152,7 +147,7 @@ impl<S> Trace4Layers<S> {
     }
 }
 
-impl<S> Layer<S> for Trace4Layers<S>
+impl<S> Layer<S> for T4Layer<S>
 where
     S: Subscriber,
     FmtLayer<S, DefaultFields, EventFormatter, BoxMakeWriter>: Layer<S>,

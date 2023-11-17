@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    cmp, fs,
     io::{self, LineWriter, Write},
 };
 
@@ -98,7 +98,7 @@ impl FixedWindow {
                     c = c.saturating_sub(1);
                 }
 
-                while c > 0 && c > Self::COUNT_BASE {
+                while c > cmp::max(0, Self::COUNT_BASE) {
                     Self::pattern_roll(&self.pattern, c, c.saturating_add(1))?;
                     c = c.saturating_sub(1);
                 }
@@ -156,14 +156,14 @@ impl Roller {
             },
             Self::Delete => fs::remove_file(path)?,
         }
-        writer.replace(RollingFile::new_writer(path)?);
+        writer.replace(Rolling::new_writer(path)?);
         Ok(())
     }
 }
 
 /// An appender which writes to a file and manages rolling said file, either to
 /// backups or by deletion.
-pub struct RollingFile {
+pub struct Rolling {
     path: Utf8PathBuf,
     /// Writer will always be some except when it is being rolled or if there
     /// was an error initing a new writer after abandonment of the previous.
@@ -172,7 +172,7 @@ pub struct RollingFile {
     trigger: Trigger,
     roller: Roller,
 }
-impl RollingFile {
+impl Rolling {
     const DEFAULT_FILE_NAME: &'static str = "log";
     const DEFAULT_ROLL_PATTERN: &'static str = "{filename}.{}";
     const FILE_NAME_TOKEN: &'static str = "{filename}";
@@ -310,7 +310,7 @@ impl RollingFile {
     }
 }
 
-impl io::Write for RollingFile {
+impl io::Write for Rolling {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if let Some(w) = &mut self.writer {
             let bs_written = w.write(buf)?;
