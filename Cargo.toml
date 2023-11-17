@@ -1,3 +1,62 @@
 [workspace]
 resolver = "1"
 members = ["trace4rs", "trace4rs-config", "trace4rs-fmtorp"]
+
+[workspace.package]
+version = "0.5.1"
+authors = [
+    "Evan Simmons <evan.simmons@imperva.com>",
+    "Everett Pompeii <everett.pompeii@imperva.com>",
+    "Richard Meester <richard.meester@imperva.com>",
+]
+edition = "2021"
+license = "MIT"
+keywords = ["tracing", "logging", "log4rs"]
+repository = "https://github.com/imperva/trace4rs"
+readme = "readme.md"
+categories = ["development-tools"]
+
+[workspace.lints.clippy]
+all = "warn"                          # correctness, sus, style, complexity, perf
+pedantic = "warn"
+cargo = "warn"
+absolute_paths = "warn"
+assertions_on_result_states = "warn"
+arithmetic_side_effects = "warn"
+create_dir = "warn"
+deref_by_slicing = "warn"
+empty_drop = "warn"
+empty_structs_with_brackets = "warn"
+filetype_is_file = "warn"
+format_push_string = "warn"
+indexing_slicing = "warn"
+lossy_float_literal = "warn"
+mem_forget = "warn"                   # Use ManuallyDrop
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+multiple_inherent_impl = "warn"
+mutex_atomic = "warn"
+needless_raw_strings = "warn"
+panic_in_result_fn = "warn"
+partial_pub_fields = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_type_annotations = "warn"
+self_named_module_files = "warn"
+semicolon_outside_block = "warn"
+shadow_unrelated = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+tests_outside_test_module = "warn"
+undocumented_unsafe_blocks = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unseparated_literal_suffix = "warn"
+unwrap_in_result = "warn"
+unwrap_used = "warn"
+verbose_file_reads = "warn"
+
+# Enable when stabilized
+# allow_attributes = "warn"
+# allow_attributes_without_reason = "warn"

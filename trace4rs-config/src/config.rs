@@ -2,10 +2,7 @@
 
 use std::{
     borrow::Cow,
-    collections::{
-        HashMap,
-        HashSet,
-    },
+    collections::{HashMap, HashSet},
     result,
     str::FromStr,
 };
@@ -13,18 +10,11 @@ use std::{
 #[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 #[cfg(feature = "serde")]
-use serde::{
-    Deserialize,
-    Deserializer,
-    Serialize,
-    Serializer,
-};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use smart_default::SmartDefault;
+use tracing::level_filters;
 
-use crate::error::{
-    Error,
-    Result,
-};
+use crate::error::{Error, Result};
 
 /// The root configuration object containing everything necessary to build a
 /// `trace4rs::Handle`.
@@ -34,7 +24,7 @@ use crate::error::{
 pub struct Config {
     /// The default logger, which must be configured.
     #[cfg_attr(feature = "serde", serde(rename = "root", alias = "default"))]
-    pub default:   Logger,
+    pub default: Logger,
     /// Appenders are assigned an id of your choice and configure actual log
     /// message output.
     #[cfg_attr(
@@ -48,7 +38,7 @@ pub struct Config {
         feature = "in-order-serialization",
         serde(serialize_with = "ordered_map")
     )]
-    pub loggers:   HashMap<Target, Logger>,
+    pub loggers: HashMap<Target, Logger>,
 }
 
 /// # Errors
@@ -88,18 +78,15 @@ impl Default for Config {
 impl Config {
     /// A configuration for `INFO` and above to be logged to stdout.
     fn console_config() -> Config {
-        use literally::{
-            hmap,
-            hset,
-        };
+        use literally::{hmap, hset};
 
         Config {
-            default:   Logger {
-                level:     LevelFilter::INFO,
+            default: Logger {
+                level: LevelFilter::INFO,
                 appenders: hset! { "stdout" },
-                format:    Format::default(),
+                format: Format::default(),
             },
-            loggers:   hmap! {},
+            loggers: hmap! {},
             appenders: hmap! {
                 "stdout" => Appender::Console
             },
@@ -146,12 +133,12 @@ pub struct Logger {
         serde(serialize_with = "ordered_set")
     )]
     pub appenders: HashSet<AppenderId>,
-    pub level:     LevelFilter,
+    pub level: LevelFilter,
     #[cfg_attr(
         feature = "serde",
         serde(default = "Format::default", skip_serializing_if = "Format::is_normal")
     )]
-    pub format:    Format,
+    pub format: Format,
 }
 
 #[cfg(feature = "serde")]
@@ -261,10 +248,9 @@ impl Format {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "schemars", derive(JsonSchema), schemars(transparent))]
 pub struct LevelFilter(
-    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
-    tracing::level_filters::LevelFilter,
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))] level_filters::LevelFilter,
 );
-impl From<LevelFilter> for tracing::level_filters::LevelFilter {
+impl From<LevelFilter> for level_filters::LevelFilter {
     fn from(l: LevelFilter) -> Self {
         l.0
     }
@@ -272,12 +258,12 @@ impl From<LevelFilter> for tracing::level_filters::LevelFilter {
 
 #[rustfmt::skip] // eas: retain order
 impl LevelFilter {
-    pub const TRACE: Self = LevelFilter(tracing::level_filters::LevelFilter::TRACE);
-    pub const DEBUG: Self = LevelFilter(tracing::level_filters::LevelFilter::DEBUG);
-    pub const INFO: Self = LevelFilter(tracing::level_filters::LevelFilter::INFO);
-    pub const WARN: Self = LevelFilter(tracing::level_filters::LevelFilter::WARN);
-    pub const ERROR: Self = LevelFilter(tracing::level_filters::LevelFilter::ERROR);
-    pub const OFF: Self = LevelFilter(tracing::level_filters::LevelFilter::OFF);
+    pub const TRACE: Self = LevelFilter(level_filters::LevelFilter::TRACE);
+    pub const DEBUG: Self = LevelFilter(level_filters::LevelFilter::DEBUG);
+    pub const INFO: Self = LevelFilter(level_filters::LevelFilter::INFO);
+    pub const WARN: Self = LevelFilter(level_filters::LevelFilter::WARN);
+    pub const ERROR: Self = LevelFilter(level_filters::LevelFilter::ERROR);
+    pub const OFF: Self = LevelFilter(level_filters::LevelFilter::OFF);
     #[must_use] pub const fn maximum() -> Self {
         Self::TRACE
     }
@@ -305,7 +291,7 @@ impl<'de> Deserialize<'de> for LevelFilter {
     }
 }
 impl FromStr for LevelFilter {
-    type Err = <tracing::level_filters::LevelFilter as FromStr>::Err;
+    type Err = <level_filters::LevelFilter as FromStr>::Err;
 
     fn from_str(s: &str) -> result::Result<Self, Self::Err> {
         Ok(Self(FromStr::from_str(s)?))
@@ -327,7 +313,7 @@ pub enum Appender {
         path: String,
     },
     RollingFile {
-        path:   String,
+        path: String,
         #[cfg_attr(feature = "serde", serde(rename = "rolloverPolicy"))]
         policy: Policy,
     },
@@ -338,6 +324,7 @@ impl Appender {
         Self::File { path: path.into() }
     }
 
+    #[must_use]
     pub fn console() -> Self {
         Self::Console
     }
@@ -408,10 +395,7 @@ impl Policy {
             Err(e) => return Err(e.into()),
         };
 
-        let unit = match unit {
-            Some(u) => u,
-            None => return Ok(number),
-        };
+        let Some(unit) = unit else { return Ok(number) };
 
         let bytes_number = if unit.eq_ignore_ascii_case("b") {
             Some(number)
@@ -438,18 +422,15 @@ impl Policy {
 mod test {
     use literally::hset;
 
-    use super::{
-        LevelFilter,
-        Logger,
-    };
+    use super::{LevelFilter, Logger};
     use crate::config::Format;
 
     #[test]
     fn test_format_serde() {
         let lgr = Logger {
             appenders: hset! {},
-            level:     LevelFilter::OFF,
-            format:    Format::Normal,
+            level: LevelFilter::OFF,
+            format: Format::Normal,
         };
         let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
         assert!(lgr_value.get("format").is_none());
@@ -458,8 +439,8 @@ mod test {
 
         let lgr = Logger {
             appenders: hset! {},
-            level:     LevelFilter::OFF,
-            format:    Format::MessageOnly,
+            level: LevelFilter::OFF,
+            format: Format::MessageOnly,
         };
         let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
         let fmt = lgr_value.get("format").unwrap().as_str().unwrap();
@@ -469,8 +450,8 @@ mod test {
 
         let lgr = Logger {
             appenders: hset! {},
-            level:     LevelFilter::OFF,
-            format:    Format::Custom("foobar".to_string()),
+            level: LevelFilter::OFF,
+            format: Format::Custom("foobar".to_string()),
         };
         let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
         let fmt = lgr_value.get("format").unwrap().as_str().unwrap();

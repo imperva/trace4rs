@@ -1,4 +1,4 @@
-use tracing::{metadata::LevelFilter, Event, Subscriber};
+use tracing::{metadata::LevelFilter, Event, Level, Subscriber};
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{
     fmt::{format::DefaultFields, writer::BoxMakeWriter, Layer as FmtLayer},
@@ -17,26 +17,16 @@ use crate::{
     error::Result,
 };
 
+type DynLayer<S> = Box<dyn Layer<S> + Send + Sync>;
+
 pub struct Trace4Layers<S = SharedRegistry> {
     enabled: bool,
     default: Logger<S>,
     loggers: Vec<Logger<S>>,
+    extra: Vec<Box<dyn Layer<S> + Send + Sync>>,
     appenders: Appenders,
 }
 
-impl<S: Clone> Clone for Trace4Layers<S>
-where
-    Logger<S>: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            enabled: self.enabled,
-            default: self.default.clone(),
-            loggers: self.loggers.clone(),
-            appenders: self.appenders.clone(),
-        }
-    }
-}
 impl<S> Trace4Layers<S> {
     /// If the files which are the target of appenders have been moved we
     /// abandon the moved files and remount at the correct path.
@@ -52,23 +42,23 @@ impl<S> Trace4Layers<S> {
 impl Trace4Layers {
     /// The default `Layers` backed by `broker` (`INFO` and above goes to
     /// stdout).
-    pub fn default<Reg>(registry: Reg) -> Trace4Layers<Reg>
+    pub fn default<Reg>() -> Trace4Layers<Reg>
     where
-        Reg: Subscriber + Send + Sync + for<'b> LookupSpan<'b>,
+        Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
         Logger<Reg>: Layer<Reg>,
     {
         let stdout_appender = AppenderId("stdout".to_string());
         let appenders =
             Appenders::new(literally::hmap! {stdout_appender.clone() => Appender::new_console()});
         let default = Logger::new(
-            registry,
             LevelFilter::INFO,
             None,
             (&[stdout_appender]).into_iter(),
             &appenders,
             EventFormatter::Normal,
         );
-        Trace4Layers::new(default, vec![], appenders)
+
+        Trace4Layers::new(default, vec![], appenders, Self::mk_extra())
     }
 
     /// Create a new `Layers` from a default layer and a pre-generated vec of
@@ -77,12 +67,14 @@ impl Trace4Layers {
         default: Logger<Reg>,
         loggers: Vec<Logger<Reg>>,
         appenders: Appenders,
+        extra: Vec<DynLayer<Reg>>,
     ) -> Trace4Layers<Reg> {
         Trace4Layers {
             enabled: true,
             default,
             loggers,
             appenders,
+            extra,
         }
     }
 
@@ -90,9 +82,9 @@ impl Trace4Layers {
     ///
     /// # Errors
     /// An error may occur while building the appenders.
-    pub fn from_config<Reg>(registry: Reg, config: &Config) -> Result<Trace4Layers<Reg>>
+    pub fn from_config<Reg>(config: &Config) -> Result<Trace4Layers<Reg>>
     where
-        Reg: Clone + Subscriber + Send + Sync + for<'b> LookupSpan<'b>,
+        Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
         Logger<Reg>: Layer<Reg>,
     {
         let appenders = (&config.appenders).try_into()?;
@@ -101,7 +93,6 @@ impl Trace4Layers {
             .iter()
             .map(|(targ, lg)| {
                 Logger::new(
-                    registry.clone(),
                     lg.level.into(),
                     Some(targ.clone()),
                     lg.appenders.iter(),
@@ -112,7 +103,6 @@ impl Trace4Layers {
             .collect();
 
         let default = Logger::new(
-            registry,
             config.default.level.into(),
             None,
             config.default.appenders.iter(),
@@ -120,7 +110,33 @@ impl Trace4Layers {
             config.default.format.clone().into(),
         );
 
-        Ok(Trace4Layers::new(default, layers, appenders))
+        Ok(Trace4Layers::new(
+            default,
+            layers,
+            appenders,
+            Self::mk_extra(),
+        ))
+    }
+    fn mk_extra<Reg>() -> Vec<DynLayer<Reg>>
+    where
+        Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
+    {
+        let layer = tracing_tree::HierarchicalLayer::default()
+            .with_indent_lines(true)
+            .with_indent_amount(2)
+            .with_thread_names(true)
+            .with_thread_ids(true)
+            .with_verbose_exit(true)
+            .with_verbose_entry(true)
+            .with_targets(true)
+            .with_higher_precision(true);
+
+        let filter = tracing_subscriber::filter::targets::Targets::new()
+            .with_target("rasp_ffi", Level::TRACE);
+
+        let filtered = layer.with_filter(filter);
+
+        vec![Box::new(filtered) as DynLayer<Reg>]
     }
 }
 
@@ -138,7 +154,7 @@ impl<S> Trace4Layers<S> {
 
 impl<S> Layer<S> for Trace4Layers<S>
 where
-    S: Subscriber + Clone,
+    S: Subscriber,
     FmtLayer<S, DefaultFields, EventFormatter, BoxMakeWriter>: Layer<S>,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
@@ -155,6 +171,11 @@ where
             let enabled = layer.enabled(metadata, ctx.clone());
             any |= enabled;
             if enabled {
+                layer.on_event(event, ctx.clone());
+            }
+        }
+        for layer in &self.extra {
+            if layer.enabled(metadata, ctx.clone()) {
                 layer.on_event(event, ctx.clone());
             }
         }

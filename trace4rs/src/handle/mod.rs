@@ -1,5 +1,6 @@
-use std::convert::TryFrom;
+use std::sync::Arc;
 
+use derive_where::derive_where;
 use tracing::Subscriber;
 use tracing_subscriber::{
     layer::{Layer, Layered},
@@ -8,10 +9,7 @@ use tracing_subscriber::{
 };
 use tracing_tree::HierarchicalLayer;
 
-use crate::{
-    config::Config,
-    error::{Error, Result},
-};
+use crate::{config::Config, error::Result};
 
 mod layers;
 mod loggers;
@@ -24,16 +22,13 @@ pub use trace_logger::TraceLogger;
 
 use self::loggers::Logger;
 
-type DynHandle = Handle<Box<dyn Subscriber + Send + Sync>>;
 pub type StandardHandle = Handle;
 
 /// The reloadable handle for a `TraceLogger`, with this we can modify the
 /// logging configuration at runtime.
-#[derive(Clone)]
+#[derive_where(Clone)]
 pub struct Handle<Reg = SharedRegistry> {
-    reload_handle: reload::Handle<Trace4Layers<Reg>, Reg>,
-    trace_logger: TraceLogger<Reg>,
-    root_subscriber: Reg,
+    reload_handle: Arc<reload::Handle<Trace4Layers<Reg>, Reg>>,
 }
 
 /// Initializes the default `trace4rs` handle as the `tracing` global default.
@@ -41,35 +36,26 @@ pub struct Handle<Reg = SharedRegistry> {
 /// # Errors
 /// We could fail to set the global default subscriber for `tracing`.
 pub fn init_console_logger() -> Result<Handle> {
-    let h = Handle::default();
-    tracing::subscriber::set_global_default(h.subscriber())?;
+    let (h, t) = Handle::new();
+    tracing::subscriber::set_global_default(t)?;
     Ok(h)
 }
 pub type HierarchicalHandle = Handle<Layered<HierarchicalLayer, SharedRegistry>>;
 
 impl<Reg> Handle<Reg>
 where
-    Reg: Default + Subscriber + Send + Sync + Clone + for<'b> LookupSpan<'b>,
+    Reg: Layer<Reg> + Subscriber + Send + Sync + Default + for<'s> LookupSpan<'s>,
     Logger<Reg>: Layer<Reg>,
 {
-    pub fn new() -> Handle<Reg> {
-        let registry = Reg::default();
-        let layers = Trace4Layers::default(registry.clone());
-
-        Handle::<Reg>::from_layers(registry, layers)
+    pub fn unit() -> Self {
+        let (handle, layer) = Handle::from_layers(Trace4Layers::default());
+        handle
     }
 
-    // pub fn new_hierarchical(n: usize) -> HierarchicalHandle {
-    //     let registry = Spanregistry::new_hierarchical(n);
-    //     let layers = Layers::<Hierarchicalregistry>::default(registry.clone());
+    pub fn new() -> (Handle<Reg>, TraceLogger<Reg>) {
+        let layers = Trace4Layers::default();
 
-    //     Handle::<Hierarchicalregistry>::from_layers(registry, layers)
-    // }
-
-    /// Get the subscriber that backs this handle.
-    #[must_use]
-    pub fn subscriber(&self) -> TraceLogger<Reg> {
-        self.trace_logger.clone()
+        Handle::from_layers(layers)
     }
 
     /// Disable the subscriber.
@@ -123,8 +109,7 @@ where
     /// - Building the appenders in the config, for example
     /// opening a file for write.
     pub fn update(&mut self, config: &Config) -> Result<()> {
-        let broke_clone = self.root_subscriber.clone();
-        let ls = Trace4Layers::from_config(broke_clone, config)?;
+        let ls = Trace4Layers::from_config(config)?;
         Ok(self.reload_handle.reload(ls)?)
     }
 
@@ -133,50 +118,27 @@ where
     /// # Errors
     /// This could fail building the appenders in the config, for example
     /// opening a file for write.
-    pub fn from_config(reg: Reg, config: &Config) -> Result<Handle<Reg>>
+    pub fn from_config(config: &Config) -> Result<(Handle<Reg>, TraceLogger<Reg>)>
     where
-        Reg: Subscriber + Send + Sync + Clone,
+        Reg: Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
     {
-        let layers: Trace4Layers<Reg> = Trace4Layers::from_config(reg.clone(), config)?;
-        Ok(Self::from_layers(reg, layers))
+        let layers: Trace4Layers<Reg> = Trace4Layers::from_config(config)?;
+        Ok(Self::from_layers(layers))
     }
 
     /// Builds `Self` from `Layers` and the backing `Reg`.
-    fn from_layers(registry: Reg, layers: Trace4Layers<Reg>) -> Handle<Reg>
+    fn from_layers(layers: Trace4Layers<Reg>) -> (Handle<Reg>, TraceLogger<Reg>)
     where
         Reg: Subscriber + Send + Sync,
     {
         let (reloadable, reload_handle) = reload::Layer::new(layers);
-        let root_subscriber = registry.clone();
-        let trace_logger = TraceLogger::new(root_subscriber.clone(), reloadable);
+        let trace_logger = TraceLogger::new(Reg::default(), reloadable);
 
-        Handle {
-            reload_handle,
+        (
+            Handle {
+                reload_handle: Arc::new(reload_handle),
+            },
             trace_logger,
-            root_subscriber,
-        }
-    }
-}
-
-impl Default for Handle {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TryFrom<Config> for Handle {
-    type Error = Error;
-
-    fn try_from(c: Config) -> Result<Self> {
-        Self::try_from(&c)
-    }
-}
-
-impl TryFrom<&Config> for Handle {
-    type Error = Error;
-
-    fn try_from(c: &Config) -> Result<Handle> {
-        let reg = SharedRegistry::default();
-        Handle::from_config(reg, c)
+        )
     }
 }

@@ -13,10 +13,9 @@ use tracing_subscriber::{
         writer::{BoxMakeWriter, MakeWriterExt},
         FmtContext, FormatEvent, FormatFields, Layer as FmtLayer,
     },
-    layer::{Context, Layered},
-    prelude::__tracing_subscriber_SubscriberExt,
+    layer::Context,
     registry::LookupSpan,
-    Layer, Registry,
+    Layer,
 };
 
 use crate::{
@@ -35,12 +34,11 @@ static NORMAL_FMT: Lazy<Format<Full, UtcOffsetTime>> =
 pub struct Logger<Reg = SharedRegistry, N = DefaultFields, F = EventFormatter> {
     level: LevelFilter,
     target: Option<Target>,
-    layer: Layered<FmtLayer<Reg, N, F, BoxMakeWriter>, Reg>,
+    layer: FmtLayer<Reg, N, F, BoxMakeWriter>,
 }
 
 impl Logger {
     pub fn new<'a, Reg>(
-        r: Reg,
         level: LevelFilter,
         target: Option<Target>,
         ids: impl Iterator<Item = &'a AppenderId>,
@@ -55,8 +53,8 @@ impl Logger {
             Self::mk_writer(ids, appenders).unwrap_or_else(|| BoxMakeWriter::new(io::sink));
 
         let fmt_layer = FmtLayer::default().event_format(format).with_ansi(false);
-        let append_layer = fmt_layer.with_writer(writer);
-        let layer = r.with(append_layer);
+        let layer = fmt_layer.with_writer(writer);
+        // let layer = r.with(append_layer);
 
         Logger {
             level,
@@ -103,8 +101,8 @@ where
         Logger::is_enabled(self, meta)
     }
 
-    fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, Sub>) {
-        self.layer.event(event);
+    fn on_event(&self, event: &Event<'_>, ctx: Context<'_, Sub>) {
+        self.layer.on_event(event, ctx);
     }
 }
 

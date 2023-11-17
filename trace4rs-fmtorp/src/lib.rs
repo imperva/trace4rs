@@ -1,10 +1,5 @@
-#![allow(clippy::single_char_lifetime_names)]
 use core::fmt;
-use std::{
-    borrow::Cow,
-    collections::HashSet,
-    ops::RangeInclusive,
-};
+use std::{borrow::Cow, collections::HashSet, ops::RangeInclusive};
 
 use tracing_subscriber::fmt::format;
 
@@ -23,13 +18,13 @@ pub enum Error {
 #[derive(Debug)]
 pub struct Fmtr<'fmtstr> {
     /// The owned or static borrowed format string.
-    fmt_str:      Cow<'fmtstr, str>,
+    fmt_str: Cow<'fmtstr, str>,
     /// The ranges indexing `fmt_str` which 1-1 index `ordered_fields`.
     /// # Invariants
     /// Ranges are strictly within bounds of fmt_str
     field_ranges: Vec<RangeInclusive<usize>>,
     /// The names of fields indexed identically to field_ranges.
-    field_names:  Vec<&'static str>,
+    field_names: Vec<&'static str>,
 }
 impl<'fmtstr> Fmtr<'fmtstr> {
     /// Unrecognized fields should be an error
@@ -57,14 +52,14 @@ impl<'fmtstr> Fmtr<'fmtstr> {
                 }
                 // end match
                 if x == '}' {
-                    #[allow(clippy::integer_arithmetic)] // no overflow potential
+                    #[allow(clippy::arithmetic_side_effects)] // no overflow potential
                     if strt + 1 == xi {
                         return Err(Error::EmptyField);
                     }
                     field_ranges.push(strt..=xi);
                     // safe since we know the slice is non-empty and xi in bounds
                     // and no overflow potential
-                    #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
+                    #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
                     let ff = &fmt_str[(strt + 1)..xi];
                     if let Some(f) = fields.get(ff) {
                         field_names.push(*f);
@@ -100,6 +95,7 @@ impl<'fmtstr> Fmtr<'fmtstr> {
         })
     }
 
+    #[must_use]
     pub fn field_from_id(&self, i: usize) -> Option<&'static str> {
         self.field_names.get(i).copied()
     }
@@ -110,9 +106,9 @@ impl<'fmtstr> Fmtr<'fmtstr> {
     /// # Panics
     /// Panics should only happen on bugs.
     #[allow(clippy::unwrap_in_result)]
-    pub fn write<'writer>(
+    pub fn write(
         &self,
-        mut writer: format::Writer<'writer>,
+        mut writer: format::Writer<'_>,
         value_writer: &impl FieldValueWriter,
     ) -> fmt::Result {
         let mut last = 0;
@@ -130,7 +126,7 @@ impl<'fmtstr> Fmtr<'fmtstr> {
             value_writer.write_value(writer.by_ref(), field)?;
 
             // last may run off the end if last range
-            #[allow(clippy::integer_arithmetic)]
+            #[allow(clippy::arithmetic_side_effects)]
             {
                 last = range.end() + 1;
             }

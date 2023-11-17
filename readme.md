@@ -14,3 +14,9 @@ The takeaway is that the actual appenders are roughly equivalent in
 performance. However, when using the `tracing` macros vs the `log` macros
 the appender performance is roughly 2 orders of magnitude larger.
 See for yourself with `cargo bench --features tracing-macros`
+
+
+## Todo
+
+- [ ] Allow for generic "Layers" which can be plugged from tracing ecosystem
+  - The reason for this is that we have parts of the ecosystem that don't use FormatEvent, we will therefore need to come up with a mechanism to use them which is outside that.

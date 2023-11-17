@@ -1,23 +1,13 @@
 use std::{
     fs,
-    io::{
-        self,
-        LineWriter,
-        Write,
-    },
+    io::{self, LineWriter, Write},
 };
 
-use camino::{
-    Utf8Path,
-    Utf8PathBuf,
-};
+use camino::{Utf8Path, Utf8PathBuf};
 
 use crate::{
     env::try_expand_env_vars,
-    error::{
-        Error,
-        Result,
-    },
+    error::{Error, Result},
 };
 
 /// `LogFileMeta` allows us to keep track of an estimated length for a given
@@ -68,8 +58,8 @@ impl Trigger {
 #[derive(Clone)]
 pub struct FixedWindow {
     /// invariant last < count
-    last:    Option<usize>,
-    count:   usize,
+    last: Option<usize>,
+    count: usize,
     pattern: String,
 }
 impl FixedWindow {
@@ -96,25 +86,13 @@ impl FixedWindow {
     fn roll(&mut self, path: &Utf8Path) -> io::Result<()> {
         // if None, we just need to roll to zero, which happens after this block
 
-        // see todo below
-        // 'outer: {
-        {
+        'outer: {
             if let Some(mut c) = self.last {
                 // holding max rolls, saturation should be fine
                 if c.saturating_add(1) == self.count {
-                    // if Some(0) and 1 = self.count we skip
                     if c == 0 {
-                        // todo: uncomment the following break and delete everything
-                        // after it in block once we can use `feature(label_break_value)`
-
-                        // break 'outer;
-                        self.inc_last();
-
-                        let new_path = self
-                            .pattern
-                            .replace(Self::INDEX_TOKEN, &Self::COUNT_BASE.to_string());
-
-                        return fs::rename(path, new_path);
+                        // if self.last = Some(0) and self.count = 1: skip
+                        break 'outer;
                     }
                     // We skip the last file if we're at the max so it'll get overwritten.
                     c = c.saturating_sub(1);
@@ -186,13 +164,13 @@ impl Roller {
 /// An appender which writes to a file and manages rolling said file, either to
 /// backups or by deletion.
 pub struct RollingFile {
-    path:    Utf8PathBuf,
+    path: Utf8PathBuf,
     /// Writer will always be some except when it is being rolled or if there
     /// was an error initing a new writer after abandonment of the previous.
-    writer:  Option<LineWriter<fs::File>>,
-    meta:    LogFileMeta,
+    writer: Option<LineWriter<fs::File>>,
+    meta: LogFileMeta,
     trigger: Trigger,
-    roller:  Roller,
+    roller: Roller,
 }
 impl RollingFile {
     const DEFAULT_FILE_NAME: &'static str = "log";
@@ -211,14 +189,14 @@ impl RollingFile {
         let expanded_path = try_expand_env_vars(p.as_ref());
         let (writer, meta) = {
             let writer = Self::new_writer(&expanded_path).map_err(|e| Error::CreateFailed {
-                path:   expanded_path.clone().into_owned(),
+                path: expanded_path.clone().into_owned(),
                 source: e,
             })?;
             let meta = writer
                 .get_ref()
                 .metadata()
                 .map_err(|e| Error::MetadataFailed {
-                    path:   expanded_path.clone().into_owned(),
+                    path: expanded_path.clone().into_owned(),
                     source: e,
                 })?;
             (writer, LogFileMeta::from_meta(&meta))
@@ -288,7 +266,7 @@ impl RollingFile {
     /// pattern: "{filename}.{}".
     ///
     /// ```ignore
-    /// 
+    ///
     /// make_qualified_pattern(Path::from("./foo/bar.log"), None); // -> "./foo/bar.log.{}"
     /// make_qualified_pattern(Path::from("./foo/bar.log"), Some("bar_roll.{}")); // -> "./foo/bar_roll.{}"
     /// ```

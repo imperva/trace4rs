@@ -1,11 +1,17 @@
 [package]
 name = "trace4rs"
-version = "0.5.1"
-edition = "2021"
 description = "log4rs like usability with the `tracing` crate as the base"
-keywords = ["tracing", "logging", "log4rs"]
-authors = ["Evan Simmons", "Everett Pompeii", "Richard Meester"]
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+keywords.workspace = true
+repository.workspace = true
+readme.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
 
 [features]
 tracing-macros = []               # internal, for benches
