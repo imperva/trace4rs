@@ -1,21 +1,25 @@
 use std::sync::Arc;
 
 use tracing::{span, Event, Subscriber};
-use tracing_subscriber::{layer::Layered, prelude::*, reload, Registry};
+use tracing_subscriber::{layer::Layered, prelude::*, registry::LookupSpan, reload, Registry};
 
-use crate::handle::Layers;
+use crate::handle::Trace4Layers;
+
+use super::shared_registry::SharedRegistry;
 
 /// The `tracing::Subscriber` that this crate implements.
 #[derive(Clone)]
-pub struct TraceLogger<Reg = Registry> {
-    inner: Arc<Layered<reload::Layer<Layers<Reg>, Reg>, Reg>>,
+pub struct TraceLogger<Reg = SharedRegistry> {
+    inner: Arc<Layered<reload::Layer<Trace4Layers<Reg>, Reg>, Reg>>,
 }
 
 impl TraceLogger {
-    pub(crate) fn new<Reg>(broker: Reg, layers: reload::Layer<Layers<Reg>, Reg>) -> TraceLogger<Reg>
+    pub(crate) fn new<Reg>(
+        broker: Reg,
+        layers: reload::Layer<Trace4Layers<Reg>, Reg>,
+    ) -> TraceLogger<Reg>
     where
-        Reg: Subscriber + Clone,
-        // Arc<reload::Layer<Layers<Reg>, Reg>>: tracing_subscriber::layer::Layer<Reg>,
+        Reg: Subscriber + Clone + for<'a> LookupSpan<'a>,
     {
         let inner = Arc::new(broker.with(layers));
         TraceLogger { inner }
@@ -26,8 +30,7 @@ impl TraceLogger {
 
 impl<Reg> Subscriber for TraceLogger<Reg>
 where
-    Reg: Subscriber + Clone,
-    // reload::Layer<Layers<Reg>, Reg>: tracing_subscriber::Layer<Reg>,
+    Reg: Subscriber + Clone + for<'a> LookupSpan<'a>,
 {
     fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
         Subscriber::enabled(&self.inner, metadata)

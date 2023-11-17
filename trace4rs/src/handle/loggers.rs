@@ -19,11 +19,12 @@ use tracing_subscriber::{
     Layer, Registry,
 };
 
-use super::PolyLayer;
 use crate::{
     appenders::Appenders,
     config::{AppenderId, Format as ConfigFormat, Target},
 };
+
+use super::shared_registry::SharedRegistry;
 
 const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
     time::format_description::well_known::Rfc3339;
@@ -31,43 +32,37 @@ const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
 static NORMAL_FMT: Lazy<Format<Full, UtcOffsetTime>> =
     Lazy::new(|| Format::default().with_timer(UtcOffsetTime).with_ansi(false));
 
-pub struct Logger<Reg = Registry, N = DefaultFields, F = EventFormatter> {
+pub struct Logger<Reg = SharedRegistry, N = DefaultFields, F = EventFormatter> {
     level: LevelFilter,
     target: Option<Target>,
     layer: Layered<FmtLayer<Reg, N, F, BoxMakeWriter>, Reg>,
 }
-impl<B> Logger<B> {
-    fn is_enabled(&self, meta: &Metadata<'_>) -> bool {
-        let match_level = meta.level() <= &self.level;
-        let match_target = self
-            .target
-            .as_ref()
-            .map_or(true, |t| meta.target().starts_with(t.as_str()));
 
-        match_level && match_target
-    }
-}
 impl Logger {
-    pub fn new_erased<'a, B>(
-        b: B,
+    pub fn new<'a, Reg>(
+        r: Reg,
         level: LevelFilter,
         target: Option<Target>,
-        ids: impl IntoIterator<Item = &'a AppenderId>,
+        ids: impl Iterator<Item = &'a AppenderId>,
         appenders: &Appenders,
         format: EventFormatter,
-    ) -> PolyLayer<B>
+    ) -> Logger<Reg, DefaultFields, EventFormatter>
     where
-        B: Subscriber + Send + Sync + for<'b> LookupSpan<'b>,
-        Logger<B>: Layer<B>,
+        Reg: Subscriber + Send + Sync + for<'b> LookupSpan<'b>,
+        FmtLayer<Reg, DefaultFields, EventFormatter, BoxMakeWriter>: Layer<Reg>,
     {
-        Box::new(Self::new(
-            b,
+        let writer =
+            Self::mk_writer(ids, appenders).unwrap_or_else(|| BoxMakeWriter::new(io::sink));
+
+        let fmt_layer = FmtLayer::default().event_format(format).with_ansi(false);
+        let append_layer = fmt_layer.with_writer(writer);
+        let layer = r.with(append_layer);
+
+        Logger {
             level,
             target,
-            ids.into_iter(),
-            appenders,
-            format,
-        ))
+            layer,
+        }
     }
 
     fn mk_writer<'a>(
@@ -86,32 +81,17 @@ impl Logger {
         }
         accumulated_makewriter
     }
+}
 
-    pub fn new<'a, B>(
-        r: B,
-        level: LevelFilter,
-        target: Option<Target>,
-        ids: impl Iterator<Item = &'a AppenderId>,
-        appenders: &Appenders,
-        format: EventFormatter,
-    ) -> Logger<B, DefaultFields, EventFormatter>
-    where
-        B: Subscriber + Send + Sync + for<'b> LookupSpan<'b>,
-        tracing_subscriber::fmt::Layer<B, DefaultFields, EventFormatter, BoxMakeWriter>: Layer<B>,
-    {
-        let writer =
-            Self::mk_writer(ids, appenders).unwrap_or_else(|| BoxMakeWriter::new(io::sink));
+impl<B> Logger<B> {
+    fn is_enabled(&self, meta: &Metadata<'_>) -> bool {
+        let match_level = meta.level() <= &self.level;
+        let match_target = self
+            .target
+            .as_ref()
+            .map_or(true, |t| meta.target().starts_with(t.as_str()));
 
-        let fmt_layer = FmtLayer::default().event_format(format).with_ansi(false);
-        let append_layer = fmt_layer.with_writer(writer);
-        // let layer = append_layer;
-        let layer = r.with(append_layer);
-
-        Logger {
-            level,
-            target,
-            layer,
-        }
+        match_level && match_target
     }
 }
 impl<Sub> Layer<Sub> for Logger<Sub>
