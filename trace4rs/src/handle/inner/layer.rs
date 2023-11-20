@@ -1,23 +1,17 @@
 use tracing::{metadata::LevelFilter, Event, Subscriber};
 use tracing_log::NormalizeEvent;
-use tracing_subscriber::{
-    fmt::{format::DefaultFields, writer::BoxMakeWriter, Layer as FmtLayer},
-    layer::Context,
-    registry::LookupSpan,
-    Layer,
-};
+use tracing_subscriber::{layer::Context, registry::LookupSpan, Layer};
 
-use super::{
-    loggers::{EventFormatter, Logger},
-    shared_registry::SharedRegistry,
-};
+use super::formatter::EventFormatter;
+use super::logger::Logger;
+use crate::handle::registry::T4Registry;
 use crate::{
     appenders::{Appender, Appenders},
     config::{AppenderId, Config},
     error::Result,
 };
 
-pub struct T4Layer<S = SharedRegistry> {
+pub struct T4Layer<S = T4Registry> {
     enabled: bool,
     default: Logger<S>,
     loggers: Vec<Logger<S>>,
@@ -34,16 +28,25 @@ impl<S> T4Layer<S> {
     pub fn appenders(&self) -> &Appenders {
         &self.appenders
     }
+    /// Disable this subscriber.
+    pub fn disable(&mut self) {
+        self.enabled = false;
+    }
+
+    /// Enable this subscriber.
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
 }
 
-impl T4Layer {
+impl<Reg> T4Layer<Reg>
+where
+    Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
+    Logger<Reg>: Layer<Reg>,
+{
     /// The default `Layers` backed by `broker` (`INFO` and above goes to
     /// stdout).
-    pub fn default<Reg>() -> T4Layer<Reg>
-    where
-        Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
-        Logger<Reg>: Layer<Reg>,
-    {
+    pub fn default() -> Self {
         let stdout_appender = AppenderId("stdout".to_string());
         let appenders =
             Appenders::new(literally::hmap! {stdout_appender.clone() => Appender::new_console()});
@@ -55,17 +58,13 @@ impl T4Layer {
             EventFormatter::Normal,
         );
 
-        T4Layer::new(default, vec![], appenders)
+        Self::new(default, vec![], appenders)
     }
 
     /// Create a new `Layers` from a default layer and a pre-generated vec of
     /// sub-layers.
-    fn new<Reg>(
-        default: Logger<Reg>,
-        loggers: Vec<Logger<Reg>>,
-        appenders: Appenders,
-    ) -> T4Layer<Reg> {
-        T4Layer {
+    fn new(default: Logger<Reg>, loggers: Vec<Logger<Reg>>, appenders: Appenders) -> Self {
+        Self {
             enabled: true,
             default,
             loggers,
@@ -77,11 +76,7 @@ impl T4Layer {
     ///
     /// # Errors
     /// An error may occur while building the appenders.
-    pub fn from_config<Reg>(config: &Config) -> Result<T4Layer<Reg>>
-    where
-        Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
-        Logger<Reg>: Layer<Reg>,
-    {
+    pub fn from_config(config: &Config) -> Result<Self> {
         let appenders = (&config.appenders).try_into()?;
         let layers: Vec<Logger<_>> = config
             .loggers
@@ -109,22 +104,10 @@ impl T4Layer {
     }
 }
 
-impl<S> T4Layer<S> {
-    /// Disable this subscriber.
-    pub fn disable(&mut self) {
-        self.enabled = false;
-    }
-
-    /// Enable this subscriber.
-    pub fn enable(&mut self) {
-        self.enabled = true;
-    }
-}
-
 impl<S> Layer<S> for T4Layer<S>
 where
     S: Subscriber,
-    FmtLayer<S, DefaultFields, EventFormatter, BoxMakeWriter>: Layer<S>,
+    Logger<S>: Layer<S>,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         if !self.enabled {

@@ -6,21 +6,20 @@ use tracing_subscriber::{layer::Layer, registry::LookupSpan, reload};
 
 use crate::{config::Config, error::Result};
 
-mod layers;
-mod loggers;
-mod shared_registry;
-mod trace_logger;
+mod inner;
+mod registry;
+mod subscriber;
 
-use layers::T4Layer;
-use shared_registry::SharedRegistry;
-pub use trace_logger::ExtraTraceLogger;
+use inner::layer::T4Layer;
+use registry::T4Registry;
 
-pub use self::{loggers::Logger, trace_logger::TraceLogger};
+pub use inner::logger::Logger;
+pub use subscriber::T4Subscriber;
 
 /// The reloadable handle for a `ExtraTraceLogger`, with this we can modify the
 /// logging configuration at runtime.
 #[derive_where(Clone)]
-pub struct Handle<Reg = SharedRegistry> {
+pub struct Handle<Reg = T4Registry> {
     reload_handle: Arc<reload::Handle<T4Layer<Reg>, Reg>>,
 }
 
@@ -29,14 +28,14 @@ pub struct Handle<Reg = SharedRegistry> {
 /// # Errors
 /// We could fail to set the global default subscriber for `tracing`.
 pub fn init_console_logger() -> Result<Handle> {
-    let (h, t) = Handle::new();
+    let (h, t): (Handle, T4Subscriber) = Handle::new();
     tracing::subscriber::set_global_default(t)?;
     Ok(h)
 }
 
 impl<Reg> Handle<Reg>
 where
-    Reg: Layer<Reg> + Subscriber + Send + Sync + Default + for<'s> LookupSpan<'s>,
+    Reg: Layer<Reg> + Subscriber + for<'s> LookupSpan<'s> + Send + Sync + Default,
     Logger<Reg>: Layer<Reg>,
 {
     #[must_use]
@@ -46,7 +45,7 @@ where
     }
 
     #[must_use]
-    pub fn new() -> (Handle<Reg>, ExtraTraceLogger<Reg>) {
+    pub fn new() -> (Handle<Reg>, T4Subscriber<Reg>) {
         let layers = T4Layer::default();
 
         Handle::from_layers(layers)
@@ -107,12 +106,12 @@ where
         Ok(self.reload_handle.reload(ls)?)
     }
 
-    /// Using the given `SharedRegistry` we configure and initialize our `Self`.
+    /// Using the given `T4Registry` we configure and initialize our `Self`.
     ///
     /// # Errors
     /// This could fail building the appenders in the config, for example
     /// opening a file for write.
-    pub fn from_config(config: &Config) -> Result<(Handle<Reg>, ExtraTraceLogger<Reg>)>
+    pub fn from_config(config: &Config) -> Result<(Handle<Reg>, T4Subscriber<Reg>)>
     where
         Reg: Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
     {
@@ -121,12 +120,12 @@ where
     }
 
     /// Builds `Self` from `Layers` and the backing `Reg`.
-    fn from_layers(layers: T4Layer<Reg>) -> (Handle<Reg>, ExtraTraceLogger<Reg>)
+    fn from_layers(layers: T4Layer<Reg>) -> (Handle<Reg>, T4Subscriber<Reg>)
     where
         Reg: Subscriber + Send + Sync,
     {
         let (reloadable, reload_handle) = reload::Layer::new(layers);
-        let trace_logger = TraceLogger::new_extra(Reg::default(), reloadable);
+        let trace_logger = T4Subscriber::new_extra(Reg::default(), reloadable);
 
         (
             Handle {

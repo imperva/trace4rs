@@ -1,110 +1,24 @@
-#![allow(clippy::single_char_lifetime_names)]
-use core::fmt;
-use std::{borrow::Cow, io};
+use std::{borrow::Cow, fmt};
 
+use crate::config::Format as ConfigFormat;
 use once_cell::sync::Lazy;
 use trace4rs_fmtorp::FieldValueWriter;
-use tracing::{field::Visit, metadata::LevelFilter, Event, Metadata, Subscriber};
+use tracing::{field::Visit, Event, Subscriber};
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{
     fmt::{
-        format::{self, DefaultFields, Format, Full, Writer},
+        format::{self, Format, Full, Writer},
         time::FormatTime,
-        writer::{BoxMakeWriter, MakeWriterExt},
-        FmtContext, FormatEvent, FormatFields, Layer as FmtLayer,
+        FmtContext, FormatEvent, FormatFields,
     },
-    layer::Context,
     registry::LookupSpan,
-    Layer,
 };
-
-use crate::{
-    appenders::Appenders,
-    config::{AppenderId, Format as ConfigFormat, Target},
-};
-
-use super::shared_registry::SharedRegistry;
 
 const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
     time::format_description::well_known::Rfc3339;
 
 static NORMAL_FMT: Lazy<Format<Full, UtcOffsetTime>> =
     Lazy::new(|| Format::default().with_timer(UtcOffsetTime).with_ansi(false));
-
-pub struct Logger<Reg = SharedRegistry, N = DefaultFields, F = EventFormatter> {
-    level: LevelFilter,
-    target: Option<Target>,
-    layer: FmtLayer<Reg, N, F, BoxMakeWriter>,
-}
-
-impl Logger {
-    pub fn new<'a, Reg>(
-        level: LevelFilter,
-        target: Option<Target>,
-        ids: impl Iterator<Item = &'a AppenderId>,
-        appenders: &Appenders,
-        format: EventFormatter,
-    ) -> Logger<Reg, DefaultFields, EventFormatter>
-    where
-        Reg: Subscriber + Send + Sync + for<'b> LookupSpan<'b>,
-        FmtLayer<Reg, DefaultFields, EventFormatter, BoxMakeWriter>: Layer<Reg>,
-    {
-        let writer =
-            Self::mk_writer(ids, appenders).unwrap_or_else(|| BoxMakeWriter::new(io::sink));
-
-        let fmt_layer = FmtLayer::default().event_format(format).with_ansi(false);
-        let layer = fmt_layer.with_writer(writer);
-        // let layer = r.with(append_layer);
-
-        Logger {
-            level,
-            target,
-            layer,
-        }
-    }
-
-    fn mk_writer<'a>(
-        ids: impl Iterator<Item = &'a AppenderId>,
-        appenders: &Appenders,
-    ) -> Option<BoxMakeWriter> {
-        let mut accumulated_makewriter = None;
-        for id in ids {
-            if let Some(appender) = appenders.get(id).map(ToOwned::to_owned) {
-                accumulated_makewriter = if let Some(acc) = accumulated_makewriter.take() {
-                    Some(BoxMakeWriter::new(MakeWriterExt::and(acc, appender)))
-                } else {
-                    Some(BoxMakeWriter::new(appender))
-                }
-            }
-        }
-        accumulated_makewriter
-    }
-}
-
-impl<B> Logger<B> {
-    fn is_enabled(&self, meta: &Metadata<'_>) -> bool {
-        let match_level = meta.level() <= &self.level;
-        let match_target = self
-            .target
-            .as_ref()
-            .map_or(true, |t| meta.target().starts_with(t.as_str()));
-
-        match_level && match_target
-    }
-}
-impl<Sub> Layer<Sub> for Logger<Sub>
-where
-    Sub: Subscriber,
-    FmtLayer<Sub, DefaultFields, EventFormatter, BoxMakeWriter>: Layer<Sub>,
-{
-    fn enabled(&self, meta: &Metadata<'_>, _ctx: Context<'_, Sub>) -> bool {
-        Logger::is_enabled(self, meta)
-    }
-
-    fn on_event(&self, event: &Event<'_>, ctx: Context<'_, Sub>) {
-        self.layer.on_event(event, ctx);
-    }
-}
 
 #[derive(Debug)]
 pub enum EventFormatter {
@@ -141,13 +55,14 @@ impl From<ConfigFormat> for EventFormatter {
     }
 }
 
-impl<S> FormatEvent<S, DefaultFields> for EventFormatter
+impl<S, N> FormatEvent<S, N> for EventFormatter
 where
-    S: Subscriber + for<'b> LookupSpan<'b>,
+    S: Subscriber + for<'a> LookupSpan<'a>,
+    N: for<'w> FormatFields<'w> + 'static,
 {
     fn format_event(
         &self,
-        ctx: &FmtContext<'_, S, DefaultFields>,
+        ctx: &FmtContext<'_, S, N>,
         writer: Writer<'_>,
         event: &Event<'_>,
     ) -> std::fmt::Result {
@@ -184,11 +99,11 @@ mod fields {
         });
 }
 
-struct CustomValueWriter<'ctx, 'evt, Broker> {
-    ctx: &'ctx FmtContext<'ctx, Broker, DefaultFields>,
+struct CustomValueWriter<'ctx, 'evt, Broker, N> {
+    ctx: &'ctx FmtContext<'ctx, Broker, N>,
     event: &'evt Event<'evt>,
 }
-impl<'ctx, 'evt, Broker> CustomValueWriter<'ctx, 'evt, Broker> {
+impl<'ctx, 'evt, Broker, N> CustomValueWriter<'ctx, 'evt, Broker, N> {
     fn format_timestamp(mut writer: format::Writer<'_>) -> fmt::Result {
         use tracing_subscriber::fmt::time::OffsetTime;
 
@@ -202,10 +117,10 @@ impl<'ctx, 'evt, Broker> CustomValueWriter<'ctx, 'evt, Broker> {
         t.format_time(&mut writer)
     }
 }
-impl<'ctx, 'evt, Broker> FieldValueWriter for CustomValueWriter<'ctx, 'evt, Broker>
+impl<'ctx, 'evt, Broker, N> FieldValueWriter for CustomValueWriter<'ctx, 'evt, Broker, N>
 where
     Broker: 'static,
-    for<'writer> FmtContext<'ctx, Broker, DefaultFields>: FormatFields<'writer>,
+    for<'writer> FmtContext<'ctx, Broker, N>: FormatFields<'writer>,
 {
     fn write_value(&self, mut writer: format::Writer<'_>, field: &'static str) -> fmt::Result {
         let normalized_meta = self.event.normalized_metadata();
@@ -249,14 +164,15 @@ impl CustomFormatter {
         Ok(Self { fmtr })
     }
 
-    fn format_event<'ctx, 'evt, 'w, S>(
+    fn format_event<'ctx, 'evt, 'w, S, N>(
         &self,
-        ctx: &FmtContext<'ctx, S, DefaultFields>,
+        ctx: &FmtContext<'ctx, S, N>,
         writer: Writer<'w>,
         event: &Event<'evt>,
     ) -> fmt::Result
     where
         S: Subscriber + for<'b> LookupSpan<'b>,
+        N: FormatFields<'w> + 'static,
     {
         let value_writer = CustomValueWriter { ctx, event };
         self.fmtr.write(writer, &value_writer)
@@ -295,6 +211,8 @@ impl<'w> Visit for SingleFieldVisitor<'w> {
     }
 }
 
+/// We go above and beyond to acquire the local utc offset using
+/// the `utc_offset` crate, hence the custom impl.
 struct UtcOffsetTime;
 
 impl FormatTime for UtcOffsetTime {

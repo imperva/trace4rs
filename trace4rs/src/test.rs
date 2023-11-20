@@ -1,26 +1,13 @@
 #![cfg(test)]
 
-use std::{
-    convert::TryFrom,
-    fs,
-    io::Read,
-};
+use std::{convert::TryFrom, fs, io::Read};
 
-use trace4rs_config::config::{
-    Appender,
-    Config,
-    Format,
-    LevelFilter,
-    Logger,
-};
+use trace4rs_config::config::{Appender, Config, Format, LevelFilter, Logger};
 use tracing::Subscriber;
 
-use crate::{
-    Handle,
-    TraceLogger,
-};
+use crate::{Handle, T4Subscriber};
 
-static_assertions::assert_impl_all!(TraceLogger: Subscriber, Send, Sync);
+static_assertions::assert_impl_all!(T4Subscriber: Subscriber, Send, Sync);
 
 #[test]
 fn test_set_global() {
@@ -37,14 +24,14 @@ fn test_set_global() {
             "file" => file,
         };
         let default = Logger {
-            level:     LevelFilter::WARN,
+            level: LevelFilter::WARN,
             appenders: literally::hset! {"console"},
-            format:    Format::default(),
+            format: Format::default(),
         };
         let l1 = Logger {
-            level:     LevelFilter::INFO,
+            level: LevelFilter::INFO,
             appenders: literally::hset! {"file"},
-            format:    Format::default(),
+            format: Format::default(),
         };
         let config = Config {
             default,

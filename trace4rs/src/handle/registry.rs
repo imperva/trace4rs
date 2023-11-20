@@ -7,30 +7,31 @@ use tracing_subscriber::{
     Registry,
 };
 
-// type DynRegistry = SharedRegistry<Box<dyn Subscriber>>;
+// type DynRegistry = T4Registry<Box<dyn Subscriber>>;
 
-/// SharedRegistry exists because we need to be able to override the layer functionality.
+/// T4Registry exists because we need to be able to override the layer functionality.
 /// Also we would otherwise need to wrap a registry in an arc to share it as much as we do.
 ///
 #[derive(Debug)]
 #[derive_where(Default; Reg: Default)]
-pub struct SharedRegistry<Reg = Registry> {
+pub struct T4Registry<Reg = Registry> {
     inner: Reg,
 }
 
-impl SharedRegistry<Registry> {
+impl T4Registry<Registry> {
     pub fn new() -> Self {
-        SharedRegistry {
+        T4Registry {
             inner: tracing_subscriber::registry(),
         }
     }
 }
 
-impl tracing_subscriber::Layer<SharedRegistry> for SharedRegistry {}
+// eas: verify necessary, if not use a naked registry
+impl tracing_subscriber::Layer<T4Registry> for T4Registry {}
 
 // ########## DELEGATION BELOW ###########
 
-impl<'a, R> LookupSpan<'a> for SharedRegistry<R>
+impl<'a, R> LookupSpan<'a> for T4Registry<R>
 where
     R: LookupSpan<'a, Data = registry::Data<'a>>,
 {
@@ -44,7 +45,7 @@ where
     }
 }
 
-impl<R> Subscriber for SharedRegistry<R>
+impl<R> Subscriber for T4Registry<R>
 where
     R: Subscriber,
 {

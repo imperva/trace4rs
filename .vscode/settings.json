@@ -3,6 +3,8 @@
         "appender",
         "appenders",
         "fmtorp",
-        "messageonly"
+        "hmap",
+        "messageonly",
+        "targ"
     ]
 }

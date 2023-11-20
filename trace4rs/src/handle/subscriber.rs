@@ -1,14 +1,14 @@
 use std::marker::PhantomData;
 
-use tracing::instrument::WithSubscriber;
 use tracing::{span, Event, Level, Subscriber};
-use tracing_subscriber::filter::Filtered;
-use tracing_subscriber::layer::Filter;
+use tracing_subscriber::filter::{Filtered, Targets};
+use tracing_subscriber::layer::{Filter, SubscriberExt};
 use tracing_subscriber::{layer::Layered, registry::LookupSpan, reload, Layer};
+use tracing_tree::HierarchicalLayer;
 
 use crate::handle::T4Layer;
 
-use super::shared_registry::SharedRegistry;
+use super::registry::T4Registry;
 
 trait T4Sub<'a, S>: Layer<S> + Subscriber + Send + Sync + LookupSpan<'a>
 where
@@ -23,67 +23,52 @@ where
     Layered<L, I, S>: Subscriber + LookupSpan<'a>,
 {
 }
-impl<'a, L, F, S> T4Sub<'a, S> for Filtered<L, F, S>
+impl<'a, L, F, Reg> T4Sub<'a, Reg> for Filtered<L, F, Reg>
 where
-    L: Layer<S> + Send + Sync,
-    F: Filter<S> + Send + Sync,
-    for<'s> S: Subscriber + LookupSpan<'s>,
-    for<'s> Filtered<L, F, S>: Subscriber + LookupSpan<'s>,
+    L: Layer<Reg> + Send + Sync,
+    F: Filter<Reg> + Send + Sync,
+    for<'s> Reg: Subscriber + LookupSpan<'s>,
+    for<'s> Filtered<L, F, Reg>: Subscriber + LookupSpan<'s>,
 {
 }
 
-type DynSubscriber<S>
+pub type DynSubscriber<S>
 where
-    S: Subscriber + for<'a> LookupSpan<'a>,
+    S: Subscriber + for<'a> LookupSpan<'a> + Send + Sync,
 = Box<dyn for<'a> T4Sub<'a, S, Data = <S as LookupSpan<'a>>::Data>>;
 
 /// The `tracing::Subscriber` that this crate implements.
-pub struct TraceLogger<Reg = SharedRegistry, L = Layered<reload::Layer<T4Layer<Reg>, Reg>, Reg>> {
+pub struct T4Subscriber<
+    Reg = T4Registry,
+    L = Layered<
+        Layered<Filtered<HierarchicalLayer, Targets, Reg>, Reg>,
+        tracing_subscriber::reload::Layer<T4Layer<Reg>, Reg>,
+        Reg,
+    >,
+> {
     inner: L,
     reg: PhantomData<Reg>,
 }
 
-pub type ExtraTraceLogger<Reg> = TraceLogger<
-    Reg,
-    Layered<
-        tracing_subscriber::reload::Layer<T4Layer<Reg>, Reg>,
-        Layered<DynSubscriber<Reg>, Reg>,
-        Reg,
-    >,
->;
-
-impl TraceLogger {
-    pub(crate) fn new_dyn<Reg>(
-        broker: Reg,
-        layers: reload::Layer<T4Layer<Reg>, Reg>,
-    ) -> ExtraTraceLogger<Reg>
-    where
-        Reg: Layer<Reg> + Subscriber + Send + Sync + for<'a> LookupSpan<'a>,
-    {
-        let extra = Self::mk_extra().with_subscriber(broker);
-        let inner = extra.and_then(layers);
-        TraceLogger {
-            inner,
-            reg: PhantomData,
-        }
-    }
+impl T4Subscriber {
     pub(crate) fn new_extra<Reg>(
         broker: Reg,
         layers: reload::Layer<T4Layer<Reg>, Reg>,
-    ) -> ExtraTraceLogger<Reg>
+    ) -> T4Subscriber<Reg>
     where
         Reg: Layer<Reg> + Subscriber + Send + Sync + for<'a> LookupSpan<'a>,
     {
-        let extra = Self::mk_extra().with_subscriber(broker);
-        let inner = extra.and_then(layers);
-        TraceLogger {
+        let extra: Layered<Filtered<HierarchicalLayer, Targets, Reg>, Reg> =
+            broker.with(Self::mk_extra());
+        let inner = layers.and_then(extra);
+        T4Subscriber {
             inner,
             reg: PhantomData,
         }
     }
-    pub fn mk_extra<Reg>() -> DynSubscriber<Reg>
+    pub fn mk_extra<Reg>() -> Filtered<HierarchicalLayer, Targets, Reg>
     where
-        Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
+        Reg: Subscriber + for<'s> LookupSpan<'s>,
     {
         let layer = tracing_tree::HierarchicalLayer::default()
             .with_indent_lines(true)
@@ -100,13 +85,13 @@ impl TraceLogger {
 
         let filtered = layer.with_filter(filter);
 
-        Box::new(filtered) as DynSubscriber<Reg>
+        filtered
     }
 }
 
 // ########## DELEGATION BELOW ###########
 
-impl<'a, Reg, Lay> LookupSpan<'a> for TraceLogger<Reg, Lay>
+impl<'a, Reg, Lay> LookupSpan<'a> for T4Subscriber<Reg, Lay>
 where
     Reg: Subscriber,
     Lay: T4Sub<'a, Reg>,
@@ -119,10 +104,10 @@ where
         self.inner.span_data(id)
     }
 }
-impl<Reg, Lay> Subscriber for TraceLogger<Reg, Lay>
+impl<Reg, Lay> Subscriber for T4Subscriber<Reg, Lay>
 where
-    Reg: 'static,
-    Lay: Subscriber,
+    Reg: Subscriber,
+    Lay: Subscriber + Layer<Reg>,
 {
     fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
         Subscriber::enabled(&self.inner, metadata)
