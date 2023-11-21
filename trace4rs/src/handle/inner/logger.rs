@@ -1,5 +1,5 @@
 #![allow(clippy::single_char_lifetime_names)]
-use std::io;
+use std::{fmt, io};
 
 use tracing::{metadata::LevelFilter, Event, Metadata, Subscriber};
 use tracing_subscriber::{
@@ -10,7 +10,7 @@ use tracing_subscriber::{
     },
     layer::Context,
     registry::LookupSpan,
-    Layer,
+    Layer, Registry,
 };
 
 use crate::{
@@ -18,14 +18,21 @@ use crate::{
     config::{AppenderId, Target},
 };
 
-use crate::handle::registry::T4Registry;
-
 use super::formatter::EventFormatter;
 
-pub struct Logger<Reg = T4Registry, N = DefaultFields, F = EventFormatter> {
+pub struct Logger<Reg = Registry, N = DefaultFields, F = EventFormatter> {
     level: LevelFilter,
     target: Option<Target>,
     layer: FmtLayer<Reg, N, F, BoxMakeWriter>,
+}
+impl<Reg> fmt::Debug for Logger<Reg> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Point {{level: {:?}, target: {:?}}}",
+            self.level, self.target
+        )
+    }
 }
 impl<Reg> Logger<Reg>
 where

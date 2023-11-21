@@ -1,17 +1,15 @@
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use derive_where::derive_where;
 use tracing::Subscriber;
-use tracing_subscriber::{layer::Layer, registry::LookupSpan, reload};
+use tracing_subscriber::{layer::Layer, registry::LookupSpan, reload, Registry};
 
 use crate::{config::Config, error::Result};
 
 mod inner;
-mod registry;
 mod subscriber;
 
 use inner::layer::T4Layer;
-use registry::T4Registry;
 
 pub use inner::logger::Logger;
 pub use subscriber::T4Subscriber;
@@ -19,7 +17,7 @@ pub use subscriber::T4Subscriber;
 /// The reloadable handle for a `ExtraTraceLogger`, with this we can modify the
 /// logging configuration at runtime.
 #[derive_where(Clone)]
-pub struct Handle<Reg = T4Registry> {
+pub struct Handle<Reg = Registry> {
     reload_handle: Arc<reload::Handle<T4Layer<Reg>, Reg>>,
 }
 
@@ -35,7 +33,7 @@ pub fn init_console_logger() -> Result<Handle> {
 
 impl<Reg> Handle<Reg>
 where
-    Reg: Layer<Reg> + Subscriber + for<'s> LookupSpan<'s> + Send + Sync + Default,
+    Reg: Subscriber + for<'s> LookupSpan<'s> + Send + Sync + Default + fmt::Debug,
     Logger<Reg>: Layer<Reg>,
 {
     #[must_use]
@@ -106,14 +104,14 @@ where
         Ok(self.reload_handle.reload(ls)?)
     }
 
-    /// Using the given `T4Registry` we configure and initialize our `Self`.
+    /// Using the given `Registry` we configure and initialize our `Self`.
     ///
     /// # Errors
     /// This could fail building the appenders in the config, for example
     /// opening a file for write.
     pub fn from_config(config: &Config) -> Result<(Handle<Reg>, T4Subscriber<Reg>)>
     where
-        Reg: Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
+        Reg: Subscriber + Send + Sync + for<'s> LookupSpan<'s> + fmt::Debug,
     {
         let layers: T4Layer<Reg> = T4Layer::from_config(config)?;
         Ok(Self::from_layers(layers))
@@ -122,7 +120,7 @@ where
     /// Builds `Self` from `Layers` and the backing `Reg`.
     fn from_layers(layers: T4Layer<Reg>) -> (Handle<Reg>, T4Subscriber<Reg>)
     where
-        Reg: Subscriber + Send + Sync,
+        Reg: Subscriber + Send + Sync + fmt::Debug,
     {
         let (reloadable, reload_handle) = reload::Layer::new(layers);
         let trace_logger = T4Subscriber::new_extra(Reg::default(), reloadable);

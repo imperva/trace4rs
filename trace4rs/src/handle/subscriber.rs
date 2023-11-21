@@ -1,53 +1,22 @@
-use std::marker::PhantomData;
+use std::fmt;
 
 use tracing::{span, Event, Level, Subscriber};
+use tracing_span_tree::SpanTree;
 use tracing_subscriber::filter::{Filtered, Targets};
-use tracing_subscriber::layer::{Filter, SubscriberExt};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::Registry;
 use tracing_subscriber::{layer::Layered, registry::LookupSpan, reload, Layer};
-use tracing_tree::HierarchicalLayer;
 
 use crate::handle::T4Layer;
 
-use super::registry::T4Registry;
-
-trait T4Sub<'a, S>: Layer<S> + Subscriber + Send + Sync + LookupSpan<'a>
-where
-    S: Subscriber,
-{
-}
-impl<'a, L, I, S> T4Sub<'a, S> for Layered<L, I, S>
-where
-    L: Layer<S> + Send + Sync,
-    I: Layer<S> + Send + Sync,
-    S: Subscriber,
-    Layered<L, I, S>: Subscriber + LookupSpan<'a>,
-{
-}
-impl<'a, L, F, Reg> T4Sub<'a, Reg> for Filtered<L, F, Reg>
-where
-    L: Layer<Reg> + Send + Sync,
-    F: Filter<Reg> + Send + Sync,
-    for<'s> Reg: Subscriber + LookupSpan<'s>,
-    for<'s> Filtered<L, F, Reg>: Subscriber + LookupSpan<'s>,
-{
-}
-
-pub type DynSubscriber<S>
-where
-    S: Subscriber + for<'a> LookupSpan<'a> + Send + Sync,
-= Box<dyn for<'a> T4Sub<'a, S, Data = <S as LookupSpan<'a>>::Data>>;
+type InnerLayered<Reg> = Layered<
+    Filtered<SpanTree, Targets, Layered<reload::Layer<T4Layer<Reg>, Reg>, Reg>>,
+    Layered<tracing_subscriber::reload::Layer<T4Layer<Reg>, Reg>, Reg>,
+>;
 
 /// The `tracing::Subscriber` that this crate implements.
-pub struct T4Subscriber<
-    Reg = T4Registry,
-    L = Layered<
-        Layered<Filtered<HierarchicalLayer, Targets, Reg>, Reg>,
-        tracing_subscriber::reload::Layer<T4Layer<Reg>, Reg>,
-        Reg,
-    >,
-> {
-    inner: L,
-    reg: PhantomData<Reg>,
+pub struct T4Subscriber<Reg = Registry> {
+    inner: InnerLayered<Reg>,
 }
 
 impl T4Subscriber {
@@ -56,29 +25,17 @@ impl T4Subscriber {
         layers: reload::Layer<T4Layer<Reg>, Reg>,
     ) -> T4Subscriber<Reg>
     where
-        Reg: Layer<Reg> + Subscriber + Send + Sync + for<'a> LookupSpan<'a>,
+        Reg: Subscriber + for<'a> LookupSpan<'a> + Send + Sync + fmt::Debug,
     {
-        let extra: Layered<Filtered<HierarchicalLayer, Targets, Reg>, Reg> =
-            broker.with(Self::mk_extra());
-        let inner = layers.and_then(extra);
-        T4Subscriber {
-            inner,
-            reg: PhantomData,
-        }
+        let inner = broker.with(layers).with(Self::mk_extra());
+        T4Subscriber { inner }
     }
-    pub fn mk_extra<Reg>() -> Filtered<HierarchicalLayer, Targets, Reg>
+    pub fn mk_extra<Reg>() -> Filtered<SpanTree, Targets, Reg>
     where
-        Reg: Subscriber + for<'s> LookupSpan<'s>,
+        Reg: Subscriber + for<'s> LookupSpan<'s> + fmt::Debug,
     {
-        let layer = tracing_tree::HierarchicalLayer::default()
-            .with_indent_lines(true)
-            .with_indent_amount(2)
-            .with_thread_names(true)
-            .with_thread_ids(true)
-            .with_verbose_exit(true)
-            .with_verbose_entry(true)
-            .with_targets(true)
-            .with_higher_precision(true);
+d
+        let layer = tracing_span_tree::span_tree();
 
         let filter = tracing_subscriber::filter::targets::Targets::new()
             .with_target("rasp_ffi", Level::TRACE);
@@ -91,12 +48,12 @@ impl T4Subscriber {
 
 // ########## DELEGATION BELOW ###########
 
-impl<'a, Reg, Lay> LookupSpan<'a> for T4Subscriber<Reg, Lay>
+impl<'a, Reg> LookupSpan<'a> for T4Subscriber<Reg>
 where
-    Reg: Subscriber,
-    Lay: T4Sub<'a, Reg>,
+    Reg: Subscriber + LookupSpan<'a>,
+    Layered<tracing_subscriber::reload::Layer<T4Layer<Reg>, Reg>, Reg>: Subscriber,
 {
-    type Data = Lay::Data;
+    type Data = <Reg as LookupSpan<'a>>::Data;
     fn register_filter(&mut self) -> tracing_subscriber::filter::FilterId {
         self.inner.register_filter()
     }
@@ -104,10 +61,9 @@ where
         self.inner.span_data(id)
     }
 }
-impl<Reg, Lay> Subscriber for T4Subscriber<Reg, Lay>
+impl<Reg> Subscriber for T4Subscriber<Reg>
 where
-    Reg: Subscriber,
-    Lay: Subscriber + Layer<Reg>,
+    Reg: Subscriber + for<'a> LookupSpan<'a> + fmt::Debug,
 {
     fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
         Subscriber::enabled(&self.inner, metadata)
@@ -131,6 +87,10 @@ where
 
     fn enter(&self, span: &span::Id) {
         Subscriber::enter(&self.inner, span);
+    }
+
+    fn try_close(&self, id: span::Id) -> bool {
+        Subscriber::try_close(&self.inner, id)
     }
 
     fn exit(&self, span: &span::Id) {

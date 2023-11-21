@@ -31,7 +31,7 @@ type AppenderMap = HashMap<AppenderId, Appender>;
 
 /// Appenders holds the global map of appenders which can be referenced by
 /// Layers, it may be cheaply cloned.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Appenders {
     appenders: Arc<AppenderMap>,
 }
@@ -112,7 +112,7 @@ impl TryFrom<&config::Appender> for Appender {
 }
 
 /// An Appender represents a sink where logs can be written.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Appender {
     /// Logs are written to stdout.
     Console(Console),
@@ -260,7 +260,7 @@ impl io::Write for Appender {
 }
 
 /// An appender which writes to stdout.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct Console;
 impl Console {
     pub fn new() -> Self {
@@ -278,6 +278,7 @@ impl io::Write for Console {
 }
 
 /// An appender which writes to a file.
+#[derive(Debug)]
 pub struct File {
     path: Utf8PathBuf,
     writer: LineWriter<fs::File>,

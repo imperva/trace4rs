@@ -1,9 +1,10 @@
 #![cfg(test)]
 
-use std::{convert::TryFrom, fs, io::Read};
+use std::{fs, io::Read};
 
 use trace4rs_config::config::{Appender, Config, Format, LevelFilter, Logger};
 use tracing::Subscriber;
+use tracing_subscriber::Registry;
 
 use crate::{Handle, T4Subscriber};
 
@@ -14,7 +15,7 @@ fn test_set_global() {
     let tmp_guard = tempfile::tempdir().unwrap();
     let file_out = tmp_guard.path().join("file.log");
 
-    let handle = {
+    let (handle, subscriber) = {
         let console = Appender::Console;
         let file = Appender::File {
             path: file_out.to_string_lossy().into_owned(),
@@ -39,9 +40,9 @@ fn test_set_global() {
             appenders,
         };
 
-        Handle::try_from(config).unwrap()
+        Handle::<Registry>::from_config(&config).unwrap()
     };
-    tracing::subscriber::set_global_default(handle.subscriber()).unwrap();
+    tracing::subscriber::set_global_default(subscriber).unwrap();
 
     each_level();
     handle.flush().unwrap();

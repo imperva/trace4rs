@@ -171,8 +171,8 @@ impl CustomFormatter {
         event: &Event<'evt>,
     ) -> fmt::Result
     where
-        S: Subscriber + for<'b> LookupSpan<'b>,
-        N: FormatFields<'w> + 'static,
+        S: Subscriber + for<'a> LookupSpan<'a>,
+        N: for<'a> FormatFields<'a> + 'static,
     {
         let value_writer = CustomValueWriter { ctx, event };
         self.fmtr.write(writer, &value_writer)

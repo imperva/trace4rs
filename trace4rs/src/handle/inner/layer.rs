@@ -1,17 +1,18 @@
+use derive_where::derive_where;
 use tracing::{metadata::LevelFilter, Event, Subscriber};
 use tracing_log::NormalizeEvent;
-use tracing_subscriber::{layer::Context, registry::LookupSpan, Layer};
+use tracing_subscriber::{layer::Context, registry::LookupSpan, Layer, Registry};
 
 use super::formatter::EventFormatter;
 use super::logger::Logger;
-use crate::handle::registry::T4Registry;
 use crate::{
     appenders::{Appender, Appenders},
     config::{AppenderId, Config},
     error::Result,
 };
 
-pub struct T4Layer<S = T4Registry> {
+#[derive_where(Debug)]
+pub struct T4Layer<S = Registry> {
     enabled: bool,
     default: Logger<S>,
     loggers: Vec<Logger<S>>,
@@ -41,7 +42,7 @@ impl<S> T4Layer<S> {
 
 impl<Reg> T4Layer<Reg>
 where
-    Reg: Layer<Reg> + Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
+    Reg: Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
     Logger<Reg>: Layer<Reg>,
 {
     /// The default `Layers` backed by `broker` (`INFO` and above goes to

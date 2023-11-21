@@ -12,7 +12,7 @@ use crate::{
 
 /// `LogFileMeta` allows us to keep track of an estimated length for a given
 /// file.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct LogFileMeta {
     est_len: u64,
 }
@@ -37,7 +37,7 @@ impl LogFileMeta {
 }
 
 /// A Trigger which specifies when to roll a file.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Trigger {
     Size { limit: u64 },
 }
@@ -55,7 +55,7 @@ impl Trigger {
 ///   - foo.1
 ///   - foo.2 # the oldest rolled log file
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FixedWindow {
     /// invariant last < count
     last: Option<usize>,
@@ -125,7 +125,7 @@ impl FixedWindow {
 }
 
 /// Roller specifies how to roll a file.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Roller {
     Delete,
     FixedWindow(FixedWindow),
@@ -163,6 +163,7 @@ impl Roller {
 
 /// An appender which writes to a file and manages rolling said file, either to
 /// backups or by deletion.
+#[derive(Debug)]
 pub struct Rolling {
     path: Utf8PathBuf,
     /// Writer will always be some except when it is being rolled or if there

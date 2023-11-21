@@ -16,6 +16,11 @@ repository = "https://github.com/imperva/trace4rs"
 readme = "readme.md"
 categories = ["development-tools"]
 
+[profile.dev]
+opt-level = 1
+[profile.dev.package."*"]
+opt-level = 3
+
 [workspace.lints.clippy]
 all = "warn"                          # correctness, sus, style, complexity, perf
 pedantic = "warn"
