@@ -22,5 +22,5 @@ pub mod error;
 mod test;
 
 pub use appenders::Appender;
-pub use handle::{init_console_logger, Handle, T4Subscriber};
+pub use handle::{Handle, T4Subscriber};
 pub use trace4rs_config::{config, config::Config, error::Error as ConfigError};

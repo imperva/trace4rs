@@ -1,59 +1,47 @@
-use std::fmt;
+use std::{fmt, io};
 
-use tracing::{span, Event, Level, Subscriber};
+use tracing::{span, Event, Subscriber};
 use tracing_span_tree::SpanTree;
 use tracing_subscriber::filter::{Filtered, Targets};
-use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::Registry;
 use tracing_subscriber::{layer::Layered, registry::LookupSpan, reload, Layer};
 
 use crate::handle::T4Layer;
 
-type InnerLayered<Reg> = Layered<
-    Filtered<SpanTree, Targets, Layered<reload::Layer<T4Layer<Reg>, Reg>, Reg>>,
-    Layered<tracing_subscriber::reload::Layer<T4Layer<Reg>, Reg>, Reg>,
->;
+pub type T4Reload<Reg> = reload::Layer<T4Layer<Reg>, Reg>;
+pub type LayeredT4Reload<Reg> = Layered<T4Reload<Reg>, Reg>;
+pub type FilteredST<Reg, Wrt> = Filtered<SpanTree<Wrt>, Targets, LayeredT4Reload<Reg>>;
 
 /// The `tracing::Subscriber` that this crate implements.
-pub struct T4Subscriber<Reg = Registry> {
-    inner: InnerLayered<Reg>,
+pub struct T4Subscriber<Reg = Registry, ExtLyr = FilteredST<Reg, fn() -> io::Stderr>> {
+    inner: Layered<ExtLyr, LayeredT4Reload<Reg>>,
 }
 
 impl T4Subscriber {
-    pub(crate) fn new_extra<Reg>(
+    pub(crate) fn new_with<Reg, ExtLyr>(
         broker: Reg,
-        layers: reload::Layer<T4Layer<Reg>, Reg>,
-    ) -> T4Subscriber<Reg>
+        t4_layer: T4Reload<Reg>,
+        extra: ExtLyr,
+    ) -> T4Subscriber<Reg, ExtLyr>
     where
+        ExtLyr: Layer<LayeredT4Reload<Reg>>,
         Reg: Subscriber + for<'a> LookupSpan<'a> + Send + Sync + fmt::Debug,
     {
-        let inner = broker.with(layers).with(Self::mk_extra());
+        // let inner = t4_layer.with_subscriber(broker).with(extra);
+        let inner = broker.with(t4_layer).with(extra);
         T4Subscriber { inner }
-    }
-    pub fn mk_extra<Reg>() -> Filtered<SpanTree, Targets, Reg>
-    where
-        Reg: Subscriber + for<'s> LookupSpan<'s> + fmt::Debug,
-    {
-d
-        let layer = tracing_span_tree::span_tree();
-
-        let filter = tracing_subscriber::filter::targets::Targets::new()
-            .with_target("rasp_ffi", Level::TRACE);
-
-        let filtered = layer.with_filter(filter);
-
-        filtered
     }
 }
 
 // ########## DELEGATION BELOW ###########
 
-impl<'a, Reg> LookupSpan<'a> for T4Subscriber<Reg>
+impl<'a, Reg, ExtLyr> LookupSpan<'a> for T4Subscriber<Reg, ExtLyr>
 where
-    Reg: Subscriber + LookupSpan<'a>,
-    Layered<tracing_subscriber::reload::Layer<T4Layer<Reg>, Reg>, Reg>: Subscriber,
+    LayeredT4Reload<Reg>: Subscriber + LookupSpan<'a>,
+    ExtLyr: Layer<LayeredT4Reload<Reg>> + Layer<LayeredT4Reload<Reg>>,
 {
-    type Data = <Reg as LookupSpan<'a>>::Data;
+    type Data = <LayeredT4Reload<Reg> as LookupSpan<'a>>::Data;
     fn register_filter(&mut self) -> tracing_subscriber::filter::FilterId {
         self.inner.register_filter()
     }
@@ -61,8 +49,9 @@ where
         self.inner.span_data(id)
     }
 }
-impl<Reg> Subscriber for T4Subscriber<Reg>
+impl<Reg, ExtLyr> Subscriber for T4Subscriber<Reg, ExtLyr>
 where
+    ExtLyr: Layer<LayeredT4Reload<Reg>> + 'static,
     Reg: Subscriber + for<'a> LookupSpan<'a> + fmt::Debug,
 {
     fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {

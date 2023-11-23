@@ -42,7 +42,7 @@ utc-offset = { git = "https://github.com/estk/utc_offset" }
 camino = "1.1.2"
 rustversion = "1.0.14"
 derive-where = "1.2.5"
-tracing-span-tree = "0.1.1"
+tracing-span-tree = { path = "../../tracing-span-tree" }
 
 [dev-dependencies]
 criterion = "0.5.0"
