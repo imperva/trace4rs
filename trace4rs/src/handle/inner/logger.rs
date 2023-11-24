@@ -1,5 +1,5 @@
 #![allow(clippy::single_char_lifetime_names)]
-use std::{fmt, io};
+use std::io;
 
 use tracing::{metadata::LevelFilter, Event, Metadata, Subscriber};
 use tracing_subscriber::{
@@ -25,18 +25,10 @@ pub struct Logger<Reg = Registry, N = DefaultFields, F = EventFormatter> {
     target: Option<Target>,
     layer: FmtLayer<Reg, N, F, BoxMakeWriter>,
 }
-impl<Reg> fmt::Debug for Logger<Reg> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Point {{level: {:?}, target: {:?}}}",
-            self.level, self.target
-        )
-    }
-}
+
 impl<Reg> Logger<Reg>
 where
-    Reg: Subscriber + for<'a> LookupSpan<'a>,
+    Reg: Subscriber + for<'s> LookupSpan<'s>,
 {
     pub fn new<'a>(
         level: LevelFilter,
@@ -44,9 +36,11 @@ where
         ids: impl Iterator<Item = &'a AppenderId>,
         appenders: &Appenders,
         format: EventFormatter,
-    ) -> Logger<Reg, DefaultFields, EventFormatter> {
-        let writer = Logger::<Reg>::mk_writer(ids, appenders)
-            .unwrap_or_else(|| BoxMakeWriter::new(io::sink));
+    ) -> Logger<Reg>
+    where
+        Reg: Subscriber + for<'s> LookupSpan<'s>,
+    {
+        let writer = mk_writer(ids, appenders).unwrap_or_else(|| BoxMakeWriter::new(io::sink));
 
         let fmt_layer = FmtLayer::default().event_format(format).with_ansi(false);
         let layer = fmt_layer.with_writer(writer);
@@ -60,22 +54,6 @@ where
 }
 
 impl<Reg, N, F> Logger<Reg, N, F> {
-    fn mk_writer<'a>(
-        ids: impl Iterator<Item = &'a AppenderId>,
-        appenders: &Appenders,
-    ) -> Option<BoxMakeWriter> {
-        let mut acc_mw = None;
-        for id in ids {
-            if let Some(appender) = appenders.get(id).map(ToOwned::to_owned) {
-                acc_mw = if let Some(acc) = acc_mw.take() {
-                    Some(BoxMakeWriter::new(MakeWriterExt::and(acc, appender)))
-                } else {
-                    Some(BoxMakeWriter::new(appender))
-                }
-            }
-        }
-        acc_mw
-    }
     fn is_enabled(&self, meta: &Metadata<'_>) -> bool {
         let match_level = meta.level() <= &self.level;
         let match_target = self
@@ -99,4 +77,21 @@ where
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, Reg>) {
         self.layer.on_event(event, ctx);
     }
+}
+
+fn mk_writer<'a>(
+    ids: impl Iterator<Item = &'a AppenderId>,
+    appenders: &Appenders,
+) -> Option<BoxMakeWriter> {
+    let mut acc_mw = None;
+    for id in ids {
+        if let Some(appender) = appenders.get(id).map(ToOwned::to_owned) {
+            acc_mw = if let Some(acc) = acc_mw.take() {
+                Some(BoxMakeWriter::new(MakeWriterExt::and(acc, appender)))
+            } else {
+                Some(BoxMakeWriter::new(appender))
+            }
+        }
+    }
+    acc_mw
 }

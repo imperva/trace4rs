@@ -18,7 +18,7 @@ See for yourself with `cargo bench --features tracing-macros`
 
 ## Todo
 
-- Need to refactor up the reload stuff so that we can bubble up the ExtLyr stuff high enough to make it useful
-- [ ] Allow for generic "Layers" which can be plugged from tracing ecosystem
-  - We need to balance this with also allowing for no heap allocation of the span-tree layer
-  - The reason for this is that we have parts of the ecosystem that don't use FormatEvent, we will therefore need to come up with a mechanism to use them which is outside that.
+- address todos
+- refactor impl Handles blocks for dryer Reg and ExtLyr
+- add optional layer
+- remove debug constraints

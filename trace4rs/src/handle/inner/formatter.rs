@@ -55,14 +55,14 @@ impl From<ConfigFormat> for EventFormatter {
     }
 }
 
-impl<S, N> FormatEvent<S, N> for EventFormatter
+impl<Reg, N> FormatEvent<Reg, N> for EventFormatter
 where
-    S: Subscriber + for<'a> LookupSpan<'a>,
+    Reg: Subscriber + for<'a> LookupSpan<'a>,
     N: for<'w> FormatFields<'w> + 'static,
 {
     fn format_event(
         &self,
-        ctx: &FmtContext<'_, S, N>,
+        ctx: &FmtContext<'_, Reg, N>,
         writer: Writer<'_>,
         event: &Event<'_>,
     ) -> std::fmt::Result {
@@ -99,8 +99,8 @@ mod fields {
         });
 }
 
-struct CustomValueWriter<'ctx, 'evt, Broker, N> {
-    ctx: &'ctx FmtContext<'ctx, Broker, N>,
+struct CustomValueWriter<'ctx, 'evt, Reg, N> {
+    ctx: &'ctx FmtContext<'ctx, Reg, N>,
     event: &'evt Event<'evt>,
 }
 impl<'ctx, 'evt, Broker, N> CustomValueWriter<'ctx, 'evt, Broker, N> {
@@ -117,10 +117,10 @@ impl<'ctx, 'evt, Broker, N> CustomValueWriter<'ctx, 'evt, Broker, N> {
         t.format_time(&mut writer)
     }
 }
-impl<'ctx, 'evt, Broker, N> FieldValueWriter for CustomValueWriter<'ctx, 'evt, Broker, N>
+impl<'ctx, 'evt, Reg, N> FieldValueWriter for CustomValueWriter<'ctx, 'evt, Reg, N>
 where
-    Broker: 'static,
-    for<'writer> FmtContext<'ctx, Broker, N>: FormatFields<'writer>,
+    Reg: Subscriber + for<'a> LookupSpan<'a>,
+    N: for<'a> FormatFields<'a> + 'static,
 {
     fn write_value(&self, mut writer: format::Writer<'_>, field: &'static str) -> fmt::Result {
         let normalized_meta = self.event.normalized_metadata();
@@ -145,18 +145,13 @@ where
         Ok(())
     }
 }
+
 /// EAS: Follow strat from `NORMAL_FMT`
-/// move Message only  and this to formatter.rs and utcoffsettime
 #[derive(Debug)]
 pub struct CustomFormatter {
     fmtr: trace4rs_fmtorp::Fmtr<'static>,
 }
-// SAFETY:
-// `CustomFormatter` is safe to sync
-unsafe impl Sync for CustomFormatter {}
-// SAFETY:
-// `CustomFormatter` is safe to send
-unsafe impl Send for CustomFormatter {}
+
 impl CustomFormatter {
     fn new(fmt_str: impl Into<Cow<'static, str>>) -> Result<Self, trace4rs_fmtorp::Error> {
         let fmtr = trace4rs_fmtorp::Fmtr::new(fmt_str, &fields::FIELD_SET)?;
@@ -164,14 +159,14 @@ impl CustomFormatter {
         Ok(Self { fmtr })
     }
 
-    fn format_event<'ctx, 'evt, 'w, S, N>(
+    fn format_event<'ctx, 'evt, 'w, Reg, N>(
         &self,
-        ctx: &FmtContext<'ctx, S, N>,
+        ctx: &FmtContext<'ctx, Reg, N>,
         writer: Writer<'w>,
         event: &Event<'evt>,
     ) -> fmt::Result
     where
-        S: Subscriber + for<'a> LookupSpan<'a>,
+        Reg: Subscriber + for<'a> LookupSpan<'a>,
         N: for<'a> FormatFields<'a> + 'static,
     {
         let value_writer = CustomValueWriter { ctx, event };

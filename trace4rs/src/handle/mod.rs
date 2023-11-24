@@ -1,4 +1,4 @@
-use std::{fmt, io, sync::Arc};
+use std::sync::Arc;
 
 use derive_where::derive_where;
 use tracing::{Level, Subscriber};
@@ -6,7 +6,7 @@ use tracing_span_tree::SpanTree;
 use tracing_subscriber::{
     filter::{Filtered, Targets},
     fmt::MakeWriter,
-    layer::Layer,
+    layer::{self, Layer, Layered, SubscriberExt as _},
     registry::LookupSpan,
     reload, Registry,
 };
@@ -14,49 +14,105 @@ use tracing_subscriber::{
 use crate::{config::Config, error::Result};
 
 mod inner;
-mod subscriber;
 
 use inner::layer::T4Layer;
-
 pub use inner::logger::Logger;
-pub use subscriber::T4Subscriber;
 
-use self::subscriber::{FilteredST, LayeredT4Reload};
+pub type T4<Reg> = reload::Layer<T4Layer<Reg>, Reg>;
+pub type T4H<Reg> = reload::Handle<T4Layer<Reg>, Reg>;
+pub type LayeredT4<Reg> = Layered<T4<Reg>, Reg>;
+pub type ExtendedT4<Reg, ExtLyr> = Layered<ExtLyr, LayeredT4<Reg>>;
+
+pub type FilteredST<Reg, Wrt> = Filtered<SpanTree<Wrt>, Targets, LayeredT4<Reg>>;
+
+pub fn init_with_metrics<Reg, Wrt>(
+    target: impl Into<String>,
+    w: Wrt,
+) -> (Handle<Reg>, ExtendedT4<Reg, FilteredST<Reg, Wrt>>)
+where
+    Wrt: for<'a> MakeWriter<'a> + 'static,
+    Reg: Subscriber + for<'a> LookupSpan<'a> + Default + Send + Sync,
+{
+    let layer = tracing_span_tree::span_tree_with(w);
+    let filter = Targets::new().with_target(target, Level::TRACE);
+    let extra = layer.with_filter(filter);
+
+    Handle::new_with(extra)
+}
 
 /// The reloadable handle for a `ExtraTraceLogger`, with this we can modify the
 /// logging configuration at runtime.
 #[derive_where(Clone)]
 pub struct Handle<Reg = Registry> {
-    reload_handle: Arc<reload::Handle<T4Layer<Reg>, Reg>>,
+    reload_handle: Arc<T4H<Reg>>,
 }
 
 impl<Reg> Handle<Reg>
 where
-    Reg: Subscriber + for<'s> LookupSpan<'s> + Send + Sync + Default + fmt::Debug,
-    Logger<Reg>: Layer<Reg>,
+    Reg: Subscriber + for<'s> LookupSpan<'s> + Send + Sync + Default,
 {
-    /// Used for when you need a handle, but you don't need a logger.
+    /// Used for when you need a handle, but you don't need a logger. Should only ever really be useful to satisfy the compiler.
     #[must_use]
-    pub fn unit() -> Self {
-        let (handle, _layer) = Handle::from_layers_mw(T4Layer::default(), io::empty);
+    pub fn unit() -> Handle<Reg> {
+        let (handle, _layer) = Handle::from_layers_with(T4Layer::default(), layer::Identity::new());
         handle
     }
 
+    /// Initialize trace4rs without an additional layer
     #[must_use]
-    pub fn new_with_mw<W>(w: W) -> (Handle<Reg>, T4Subscriber<Reg, FilteredST<Reg, W>>)
+    pub fn new() -> (Handle<Reg>, ExtendedT4<Reg, layer::Identity>) {
+        Handle::new_with(layer::Identity::new())
+    }
+
+    /// Initialize trace4rs with an additional layer
+    pub fn new_with<ExtLyr>(extra: ExtLyr) -> (Handle<Reg>, ExtendedT4<Reg, ExtLyr>)
     where
-        W: for<'a> MakeWriter<'a> + 'static,
+        ExtLyr: Layer<LayeredT4<Reg>>,
     {
         let layers = T4Layer::default();
 
-        Handle::from_layers_mw(layers, w)
+        Handle::from_layers_with(layers, extra)
     }
 
-    #[must_use]
-    pub fn new() -> (Handle<Reg>, T4Subscriber<Reg>) {
-        let layers = T4Layer::default();
+    /// Initialize trace4rs from a `Config`
+    ///
+    /// # Errors
+    /// This could fail building the appenders in the config, for example
+    /// opening a file for write.
+    pub fn from_config(config: &Config) -> Result<(Handle<Reg>, ExtendedT4<Reg, layer::Identity>)> {
+        let layers: T4Layer<Reg> = T4Layer::from_config(config)?;
+        Ok(Handle::from_layers_with(layers, layer::Identity::new()))
+    }
 
-        Handle::from_layers_mw(layers, io::stderr)
+    /// Initialize trace4rs from a `Config` with an additional layer
+    pub fn from_config_with<ExtLyr>(
+        config: &Config,
+        extra: ExtLyr,
+    ) -> Result<(Handle<Reg>, ExtendedT4<Reg, ExtLyr>)>
+    where
+        ExtLyr: Layer<LayeredT4<Reg>>,
+    {
+        let layers: T4Layer<Reg> = T4Layer::from_config(config)?;
+        Ok(Handle::from_layers_with(layers, extra))
+    }
+
+    /// Builds `Self` from `Layers` and the backing `Reg`.
+    fn from_layers_with<ExtLyr>(
+        layers: T4Layer<Reg>,
+        extra: ExtLyr,
+    ) -> (Handle<Reg>, ExtendedT4<Reg, ExtLyr>)
+    where
+        ExtLyr: Layer<LayeredT4<Reg>>,
+    {
+        let (reloadable, reload_handle) = reload::Layer::new(layers);
+        let trace_logger = Reg::default().with(reloadable).with(extra);
+
+        (
+            Handle {
+                reload_handle: Arc::new(reload_handle),
+            },
+            trace_logger,
+        )
     }
 
     /// Disable the subscriber.
@@ -112,63 +168,5 @@ where
     pub fn update(&mut self, config: &Config) -> Result<()> {
         let ls = T4Layer::from_config(config)?;
         Ok(self.reload_handle.reload(ls)?)
-    }
-
-    /// Using the given `Registry` we configure and initialize our `Self`.
-    ///
-    /// # Errors
-    /// This could fail building the appenders in the config, for example
-    /// opening a file for write.
-    pub fn from_config(config: &Config) -> Result<(Handle<Reg>, T4Subscriber<Reg>)>
-    where
-        Reg: Subscriber + Send + Sync + for<'s> LookupSpan<'s> + fmt::Debug,
-    {
-        let layers: T4Layer<Reg> = T4Layer::from_config(config)?;
-        Ok(Self::from_layers_mw(layers, io::stderr))
-    }
-
-    /// Builds `Self` from `Layers` and the backing `Reg`.
-    fn from_layers_mw<Wrt>(
-        layers: T4Layer<Reg>,
-        w: Wrt,
-    ) -> (Handle<Reg>, T4Subscriber<Reg, FilteredST<Reg, Wrt>>)
-    where
-        Reg: Subscriber + Send + Sync + fmt::Debug,
-        Wrt: for<'a> MakeWriter<'a> + 'static,
-    {
-        let extra = Self::mk_extra_mw(w);
-        Handle::from_layers_with_extra(layers, extra)
-    }
-    /// Builds `Self` from `Layers` and the backing `Reg`.
-    fn from_layers_with_extra<ExtLyr>(
-        layers: T4Layer<Reg>,
-        extra: ExtLyr,
-    ) -> (Handle<Reg>, T4Subscriber<Reg, ExtLyr>)
-    where
-        Reg: Subscriber + Send + Sync + fmt::Debug,
-        LayeredT4Reload<Reg>: Subscriber,
-        ExtLyr: Layer<LayeredT4Reload<Reg>>,
-    {
-        let (reloadable, reload_handle) = reload::Layer::new(layers);
-        let trace_logger = T4Subscriber::new_with(Reg::default(), reloadable, extra);
-
-        (
-            Handle {
-                reload_handle: Arc::new(reload_handle),
-            },
-            trace_logger,
-        )
-    }
-    fn mk_extra_mw<Wrt, R>(w: Wrt) -> Filtered<SpanTree<Wrt>, Targets, R>
-    where
-        R: Subscriber + for<'a> LookupSpan<'a> + fmt::Debug,
-        Wrt: for<'a> MakeWriter<'a> + 'static,
-    {
-        let layer = tracing_span_tree::span_tree_with(w);
-
-        let filter = tracing_subscriber::filter::targets::Targets::new()
-            .with_target("rasp_ffi", Level::TRACE);
-
-        layer.with_filter(filter)
     }
 }

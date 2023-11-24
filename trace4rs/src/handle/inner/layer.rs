@@ -1,4 +1,3 @@
-use derive_where::derive_where;
 use tracing::{metadata::LevelFilter, Event, Subscriber};
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{layer::Context, registry::LookupSpan, Layer, Registry};
@@ -11,7 +10,6 @@ use crate::{
     error::Result,
 };
 
-#[derive_where(Debug)]
 pub struct T4Layer<S = Registry> {
     enabled: bool,
     default: Logger<S>,
@@ -43,7 +41,6 @@ impl<S> T4Layer<S> {
 impl<Reg> T4Layer<Reg>
 where
     Reg: Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
-    Logger<Reg>: Layer<Reg>,
 {
     /// The default `Layers` backed by `broker` (`INFO` and above goes to
     /// stdout).
@@ -107,8 +104,7 @@ where
 
 impl<S> Layer<S> for T4Layer<S>
 where
-    S: Subscriber,
-    Logger<S>: Layer<S>,
+    S: Subscriber + for<'s> LookupSpan<'s>,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         if !self.enabled {
