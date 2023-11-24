@@ -18,7 +18,4 @@ See for yourself with `cargo bench --features tracing-macros`
 
 ## Todo
 
-- address todos
-- refactor impl Handles blocks for dryer Reg and ExtLyr
-- add optional layer
-- remove debug constraints
+- add an example for metrics functionality in lieu of a pub method

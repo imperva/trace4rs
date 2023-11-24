@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use derive_where::derive_where;
 use tracing::{Level, Subscriber};
 use tracing_span_tree::SpanTree;
 use tracing_subscriber::{
@@ -25,24 +24,25 @@ pub type ExtendedT4<Reg, ExtLyr> = Layered<ExtLyr, LayeredT4<Reg>>;
 
 pub type FilteredST<Reg, Wrt> = Filtered<SpanTree<Wrt>, Targets, LayeredT4<Reg>>;
 
+/// Init a `Handle` and `Subscriber` with span metrics collection.
+/// The writer argument is where the said metrics will be written.
 pub fn init_with_metrics<Reg, Wrt>(
     target: impl Into<String>,
-    w: Wrt,
+    writer: Wrt,
 ) -> (Handle<Reg>, ExtendedT4<Reg, FilteredST<Reg, Wrt>>)
 where
     Wrt: for<'a> MakeWriter<'a> + 'static,
     Reg: Subscriber + for<'a> LookupSpan<'a> + Default + Send + Sync,
 {
-    let layer = tracing_span_tree::span_tree_with(w);
+    let layer = tracing_span_tree::span_tree_with(writer);
     let filter = Targets::new().with_target(target, Level::TRACE);
     let extra = layer.with_filter(filter);
 
     Handle::new_with(extra)
 }
 
-/// The reloadable handle for a `ExtraTraceLogger`, with this we can modify the
-/// logging configuration at runtime.
-#[derive_where(Clone)]
+/// A handle with convenience functions to reload a trace4rs `Layer`.
+/// Methods to produce a handle also produce the `Subscriber` which can be passed to `tracing::set_default_subscriber` etc.
 pub struct Handle<Reg = Registry> {
     reload_handle: Arc<T4H<Reg>>,
 }
@@ -96,7 +96,7 @@ where
         Ok(Handle::from_layers_with(layers, extra))
     }
 
-    /// Builds `Self` from `Layers` and the backing `Reg`.
+    /// Builds `Self` from `Layers` and an ExtLyr to be layered on top.
     fn from_layers_with<ExtLyr>(
         layers: T4Layer<Reg>,
         extra: ExtLyr,
@@ -168,5 +168,13 @@ where
     pub fn update(&mut self, config: &Config) -> Result<()> {
         let ls = T4Layer::from_config(config)?;
         Ok(self.reload_handle.reload(ls)?)
+    }
+}
+
+impl<Reg> Clone for Handle<Reg> {
+    fn clone(&self) -> Self {
+        Self {
+            reload_handle: Arc::clone(&self.reload_handle),
+        }
     }
 }

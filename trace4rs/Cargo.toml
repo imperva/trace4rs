@@ -37,12 +37,9 @@ time = { version = "0.3", features = ["formatting", "macros"] }
 path-absolutize = "3.0.11"
 trace4rs-config = { version = "0.5.1", path = "../trace4rs-config" }
 trace4rs-fmtorp = { version = "0.5.1", path = "../trace4rs-fmtorp" }
-# utc-offset = "0.3.0"
-utc-offset = { git = "https://github.com/estk/utc_offset" }
+utc-offset = "0.4.0"
 camino = "1.1.2"
-rustversion = "1.0.14"
-derive-where = "1.2.5"
-tracing-span-tree = { path = "../../tracing-span-tree" }
+tracing-span-tree = { git = "https://github.com/estk/tracing-span-tree" }
 
 [dev-dependencies]
 criterion = "0.5.0"
