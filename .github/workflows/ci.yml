@@ -65,11 +65,11 @@ jobs:
       - name: Test
         run: |
           cargo check
-          cargo nextest --all ${{ matrix.features_arg }}
+          cargo nextest run --all ${{ matrix.features_arg }}
 
       - name: Build
         run: |
-          cargo build ${{ matrix.features_arg }} --release
+          cargo build --release ${{ matrix.features_arg }}
 
   benchmark:
     name: Run benchmarks
