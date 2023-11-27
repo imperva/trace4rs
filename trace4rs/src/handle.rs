@@ -12,10 +12,7 @@ use tracing_subscriber::{
 
 use crate::{config::Config, error::Result};
 
-mod inner;
-
-use inner::layer::T4Layer;
-pub use inner::logger::Logger;
+use crate::subscriber::layer::T4Layer;
 
 pub type T4<Reg> = reload::Layer<T4Layer<Reg>, Reg>;
 pub type T4H<Reg> = reload::Handle<T4Layer<Reg>, Reg>;

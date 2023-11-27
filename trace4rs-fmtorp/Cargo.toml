@@ -17,5 +17,5 @@ workspace = true
 [features]
 
 [dependencies]
-thiserror = "1.0.33"
-tracing-subscriber = "0.3.15"
+thiserror.workspace = true
+tracing-subscriber.workspace = true

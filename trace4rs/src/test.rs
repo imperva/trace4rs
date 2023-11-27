@@ -3,12 +3,9 @@
 use std::{fs, io::Read};
 
 use trace4rs_config::config::{Appender, Config, Format, LevelFilter, Logger};
-use tracing::Subscriber;
 use tracing_subscriber::Registry;
 
-use crate::{Handle, T4Subscriber};
-
-static_assertions::assert_impl_all!(T4Subscriber: Subscriber, Send, Sync);
+use crate::Handle;
 
 #[test]
 fn test_set_global() {

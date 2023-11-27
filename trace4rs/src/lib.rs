@@ -16,6 +16,7 @@
 mod appenders;
 mod env;
 mod handle;
+mod subscriber;
 
 pub mod error;
 #[cfg(test)]
