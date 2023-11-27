@@ -29,6 +29,7 @@ jobs:
 
       - name: Info
         run: |
+          rustc --version
           cargo --version --verbose
           cargo clippy --version
           cargo fmt --version
