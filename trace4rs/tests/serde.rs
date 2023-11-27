@@ -2,14 +2,8 @@
 use std::convert::TryInto;
 
 use trace4rs::{
-    config::{
-        Appender,
-        AppenderId,
-        LevelFilter,
-        Target,
-    },
-    Config,
-    Handle,
+    config::{Appender, AppenderId, LevelFilter, Target},
+    Config, Handle,
 };
 
 #[test]
@@ -115,9 +109,12 @@ fn test_de() {
     assert_eq!(my_target.appenders.iter().next().unwrap(), file1);
 
     let file1_appender = parsed.appenders.get(file1).unwrap();
-    assert_eq!(file1_appender, &Appender::File {
-        path: format!("{tmp_path}/foobar.log"),
-    });
+    assert_eq!(
+        file1_appender,
+        &Appender::File {
+            path: format!("{tmp_path}/foobar.log"),
+        }
+    );
 
     // now lets convert this to a Handle
     let _handle: crate::Handle = parsed.try_into().unwrap();
