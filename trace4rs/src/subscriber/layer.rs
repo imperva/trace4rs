@@ -1,19 +1,36 @@
-use tracing::{metadata::LevelFilter, Event, Subscriber};
+use tracing::{
+    metadata::LevelFilter,
+    Event,
+    Subscriber,
+};
 use tracing_log::NormalizeEvent;
-use tracing_subscriber::{layer::Context, registry::LookupSpan, Layer, Registry};
+use tracing_subscriber::{
+    layer::Context,
+    registry::LookupSpan,
+    Layer,
+    Registry,
+};
 
-use super::formatter::EventFormatter;
-use super::logger::Logger;
+use super::{
+    formatter::EventFormatter,
+    logger::Logger,
+};
 use crate::{
-    appenders::{Appender, Appenders},
-    config::{AppenderId, Config},
+    appenders::{
+        Appender,
+        Appenders,
+    },
+    config::{
+        AppenderId,
+        Config,
+    },
     error::Result,
 };
 
 pub struct T4Layer<S = Registry> {
-    enabled: bool,
-    default: Logger<S>,
-    loggers: Vec<Logger<S>>,
+    enabled:   bool,
+    default:   Logger<S>,
+    loggers:   Vec<Logger<S>>,
     appenders: Appenders,
 }
 
@@ -27,6 +44,7 @@ impl<S> T4Layer<S> {
     pub fn appenders(&self) -> &Appenders {
         &self.appenders
     }
+
     /// Disable this subscriber.
     pub fn disable(&mut self) {
         self.enabled = false;

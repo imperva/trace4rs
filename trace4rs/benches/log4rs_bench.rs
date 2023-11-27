@@ -3,18 +3,28 @@
 
 use std::env;
 
-use criterion::{black_box, Criterion};
+use criterion::{
+    black_box,
+    Criterion,
+};
 use log::LevelFilter;
 use log4rs::{
     append::{
         console::ConsoleAppender,
         file::FileAppender,
         rolling_file::{
-            policy::compound::{roll::fixed_window::FixedWindowRoller, trigger::size::SizeTrigger},
+            policy::compound::{
+                roll::fixed_window::FixedWindowRoller,
+                trigger::size::SizeTrigger,
+            },
             RollingFileAppender,
         },
     },
-    config::{Appender, Logger, Root},
+    config::{
+        Appender,
+        Logger,
+        Root,
+    },
     Handle,
 };
 

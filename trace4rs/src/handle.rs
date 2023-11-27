@@ -1,18 +1,32 @@
 use std::sync::Arc;
 
-use tracing::{Level, Subscriber};
+use tracing::{
+    Level,
+    Subscriber,
+};
 use tracing_span_tree::SpanTree;
 use tracing_subscriber::{
-    filter::{Filtered, Targets},
+    filter::{
+        Filtered,
+        Targets,
+    },
     fmt::MakeWriter,
-    layer::{self, Layer, Layered, SubscriberExt as _},
+    layer::{
+        self,
+        Layer,
+        Layered,
+        SubscriberExt as _,
+    },
     registry::LookupSpan,
-    reload, Registry,
+    reload,
+    Registry,
 };
 
-use crate::{config::Config, error::Result};
-
-use crate::subscriber::layer::T4Layer;
+use crate::{
+    config::Config,
+    error::Result,
+    subscriber::layer::T4Layer,
+};
 
 pub type T4<Reg> = reload::Layer<T4Layer<Reg>, Reg>;
 pub type T4H<Reg> = reload::Handle<T4Layer<Reg>, Reg>;
@@ -39,7 +53,8 @@ where
 }
 
 /// A handle with convenience functions to reload a trace4rs `Layer`.
-/// Methods to produce a handle also produce the `Subscriber` which can be passed to `tracing::set_default_subscriber` etc.
+/// Methods to produce a handle also produce the `Subscriber` which can be
+/// passed to `tracing::set_default_subscriber` etc.
 pub struct Handle<Reg = Registry> {
     reload_handle: Arc<T4H<Reg>>,
 }
@@ -48,7 +63,8 @@ impl<Reg> Handle<Reg>
 where
     Reg: Subscriber + for<'s> LookupSpan<'s> + Send + Sync + Default,
 {
-    /// Used for when you need a handle, but you don't need a logger. Should only ever really be useful to satisfy the compiler.
+    /// Used for when you need a handle, but you don't need a logger. Should
+    /// only ever really be useful to satisfy the compiler.
     #[must_use]
     pub fn unit() -> Handle<Reg> {
         let (handle, _layer) = Handle::from_layers_with(T4Layer::default(), layer::Identity::new());

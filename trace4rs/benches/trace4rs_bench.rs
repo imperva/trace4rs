@@ -3,10 +3,18 @@
 
 use std::env;
 
-use criterion::{black_box, Criterion};
+use criterion::{
+    black_box,
+    Criterion,
+};
 use trace4rs::{
-    config::{self, Format, Policy},
-    Config, Handle,
+    config::{
+        self,
+        Format,
+        Policy,
+    },
+    Config,
+    Handle,
 };
 use tracing::Subscriber;
 macro_rules! do_log {
@@ -41,7 +49,7 @@ fn mk_handle() -> (Handle, impl Subscriber) {
             path: "file.log".to_string(),
         };
         let rolling_file = config::Appender::RollingFile {
-            path: "rolling_file.log".to_string(),
+            path:   "rolling_file.log".to_string(),
             policy: Policy {
                 pattern: Some("rolling_file.log.{}".to_string()),
                 max_size_roll_backups: 3,
@@ -57,20 +65,20 @@ fn mk_handle() -> (Handle, impl Subscriber) {
     };
 
     let default = config::Logger {
-        level: config::LevelFilter::INFO,
+        level:     config::LevelFilter::INFO,
         appenders: literally::hset! {"console"},
-        format: Format::default(),
+        format:    Format::default(),
     };
     let loggers = {
         let file_logger = config::Logger {
-            level: config::LevelFilter::INFO,
+            level:     config::LevelFilter::INFO,
             appenders: literally::hset! {"file"},
-            format: Format::default(),
+            format:    Format::default(),
         };
         let rolling_file_logger = config::Logger {
-            level: config::LevelFilter::INFO,
+            level:     config::LevelFilter::INFO,
             appenders: literally::hset! {"file"},
-            format: Format::default(),
+            format:    Format::default(),
         };
         literally::hmap! {"file" => file_logger, "rolling_file" => rolling_file_logger}
     };

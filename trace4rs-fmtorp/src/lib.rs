@@ -1,5 +1,9 @@
 use core::fmt;
-use std::{borrow::Cow, collections::HashSet, ops::RangeInclusive};
+use std::{
+    borrow::Cow,
+    collections::HashSet,
+    ops::RangeInclusive,
+};
 
 use tracing_subscriber::fmt::format;
 
@@ -18,13 +22,13 @@ pub enum Error {
 #[derive(Debug)]
 pub struct Fmtr<'fmtstr> {
     /// The owned or static borrowed format string.
-    fmt_str: Cow<'fmtstr, str>,
+    fmt_str:      Cow<'fmtstr, str>,
     /// The ranges indexing `fmt_str` which 1-1 index `ordered_fields`.
     /// # Invariants
     /// Ranges are strictly within bounds of fmt_str
     field_ranges: Vec<RangeInclusive<usize>>,
     /// The names of fields indexed identically to field_ranges.
-    field_names: Vec<&'static str>,
+    field_names:  Vec<&'static str>,
 }
 impl<'fmtstr> Fmtr<'fmtstr> {
     /// Unrecognized fields should be an error

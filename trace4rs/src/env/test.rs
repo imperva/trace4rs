@@ -1,4 +1,7 @@
-use std::env::{set_var, var};
+use std::env::{
+    set_var,
+    var,
+};
 
 use super::expand_env_vars;
 

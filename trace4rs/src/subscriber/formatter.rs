@@ -1,18 +1,33 @@
-use std::{borrow::Cow, fmt};
+use std::{
+    borrow::Cow,
+    fmt,
+};
 
-use crate::config::Format as ConfigFormat;
 use once_cell::sync::Lazy;
 use trace4rs_fmtorp::FieldValueWriter;
-use tracing::{field::Visit, Event, Subscriber};
+use tracing::{
+    field::Visit,
+    Event,
+    Subscriber,
+};
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{
     fmt::{
-        format::{self, Format, Full, Writer},
+        format::{
+            self,
+            Format,
+            Full,
+            Writer,
+        },
         time::FormatTime,
-        FmtContext, FormatEvent, FormatFields,
+        FmtContext,
+        FormatEvent,
+        FormatFields,
     },
     registry::LookupSpan,
 };
+
+use crate::config::Format as ConfigFormat;
 
 const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
     time::format_description::well_known::Rfc3339;
@@ -100,7 +115,7 @@ mod fields {
 }
 
 struct CustomValueWriter<'ctx, 'evt, Reg, N> {
-    ctx: &'ctx FmtContext<'ctx, Reg, N>,
+    ctx:   &'ctx FmtContext<'ctx, Reg, N>,
     event: &'evt Event<'evt>,
 }
 impl<'ctx, 'evt, Broker, N> CustomValueWriter<'ctx, 'evt, Broker, N> {
@@ -177,8 +192,8 @@ impl CustomFormatter {
 const MESSAGE_FIELD_NAME: &str = "message";
 
 struct SingleFieldVisitor<'w> {
-    newline: bool,
-    writer: Writer<'w>,
+    newline:    bool,
+    writer:     Writer<'w>,
     field_name: Cow<'static, str>,
 }
 impl<'w> SingleFieldVisitor<'w> {

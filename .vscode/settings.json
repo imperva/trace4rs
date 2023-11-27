@@ -1,12 +1,5 @@
 {
-    "cSpell.words": [
-        "appender",
-        "appenders",
-        "fmtorp",
-        "fmtr",
-        "hmap",
-        "Lyrd",
-        "messageonly",
-        "targ"
-    ]
+    "rust-analyzer.rustfmt.extraArgs": [
+        "+nightly"
+    ],
 }

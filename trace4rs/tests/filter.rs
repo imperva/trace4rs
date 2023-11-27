@@ -1,8 +1,16 @@
 #![cfg(feature = "serde")]
-use std::{env, fs, thread::sleep, time::Duration};
+use std::{
+    env,
+    fs,
+    thread::sleep,
+    time::Duration,
+};
 
 use serde_json::json;
-use trace4rs::{Config, Handle};
+use trace4rs::{
+    Config,
+    Handle,
+};
 
 #[test]
 fn test_filter() {

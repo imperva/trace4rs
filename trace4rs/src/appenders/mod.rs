@@ -2,22 +2,38 @@
 use std::{
     collections::HashMap,
     convert::TryFrom,
-    fs::{self},
-    io::{self, LineWriter, Write},
+    fs::{
+        self,
+    },
+    io::{
+        self,
+        LineWriter,
+        Write,
+    },
     ops::Deref,
     path::Path,
     sync::Arc,
 };
 
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::{
+    Utf8Path,
+    Utf8PathBuf,
+};
 use parking_lot::Mutex;
 use path_absolutize::Absolutize;
 use tracing_subscriber::fmt::MakeWriter;
 
 use crate::{
-    config::{self, AppenderId, Policy},
+    config::{
+        self,
+        AppenderId,
+        Policy,
+    },
     env::try_expand_env_vars,
-    error::{Error, Result},
+    error::{
+        Error,
+        Result,
+    },
 };
 
 mod rolling;
@@ -155,7 +171,10 @@ impl Appender {
         count: usize,
         size: &str,
     ) -> Result<Self> {
-        use rolling::{Roller, Trigger};
+        use rolling::{
+            Roller,
+            Trigger,
+        };
         let abs_path = {
             let ps = path_str.as_ref();
             let cp = Utf8Path::new(ps);
@@ -280,7 +299,7 @@ impl io::Write for Console {
 /// An appender which writes to a file.
 #[derive(Debug)]
 pub struct File {
-    path: Utf8PathBuf,
+    path:   Utf8PathBuf,
     writer: LineWriter<fs::File>,
 }
 impl File {

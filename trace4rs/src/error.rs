@@ -22,14 +22,14 @@ pub enum Error {
 
     #[error("Failed to create file at '{path}': {source}")]
     CreateFailed {
-        path: Utf8PathBuf,
+        path:   Utf8PathBuf,
         #[source]
         source: io::Error,
     },
 
     #[error("Failed to get metadata for '{path}': {source}")]
     MetadataFailed {
-        path: Utf8PathBuf,
+        path:   Utf8PathBuf,
         #[source]
         source: io::Error,
     },

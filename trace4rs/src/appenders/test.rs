@@ -1,10 +1,27 @@
-use std::{fs, io::Write, path::Component, sync::Arc};
+use std::{
+    fs,
+    io::Write,
+    path::Component,
+    sync::Arc,
+};
 
-use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
+use camino::{
+    Utf8Component,
+    Utf8Path,
+    Utf8PathBuf,
+};
 use parking_lot::Mutex;
 
-use super::rolling::{self, Roller, Rolling, Trigger};
-use crate::{appenders::rolling::FixedWindow, Appender};
+use super::rolling::{
+    self,
+    Roller,
+    Rolling,
+    Trigger,
+};
+use crate::{
+    appenders::rolling::FixedWindow,
+    Appender,
+};
 
 fn get_appender(path: &Utf8Path, pattern: &Option<String>) -> Appender {
     Appender::new_rolling(path.as_str(), pattern.as_deref(), 2, "10 B").unwrap()

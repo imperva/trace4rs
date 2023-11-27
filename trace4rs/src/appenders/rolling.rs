@@ -1,13 +1,24 @@
 use std::{
-    cmp, fs,
-    io::{self, LineWriter, Write},
+    cmp,
+    fs,
+    io::{
+        self,
+        LineWriter,
+        Write,
+    },
 };
 
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::{
+    Utf8Path,
+    Utf8PathBuf,
+};
 
 use crate::{
     env::try_expand_env_vars,
-    error::{Error, Result},
+    error::{
+        Error,
+        Result,
+    },
 };
 
 /// `LogFileMeta` allows us to keep track of an estimated length for a given
@@ -58,8 +69,8 @@ impl Trigger {
 #[derive(Clone, Debug)]
 pub struct FixedWindow {
     /// invariant last < count
-    last: Option<usize>,
-    count: usize,
+    last:    Option<usize>,
+    count:   usize,
     pattern: String,
 }
 impl FixedWindow {
@@ -164,13 +175,13 @@ impl Roller {
 /// backups or by deletion.
 #[derive(Debug)]
 pub struct Rolling {
-    path: Utf8PathBuf,
+    path:    Utf8PathBuf,
     /// Writer will always be some except when it is being rolled or if there
     /// was an error initing a new writer after abandonment of the previous.
-    writer: Option<LineWriter<fs::File>>,
-    meta: LogFileMeta,
+    writer:  Option<LineWriter<fs::File>>,
+    meta:    LogFileMeta,
     trigger: Trigger,
-    roller: Roller,
+    roller:  Roller,
 }
 impl Rolling {
     const DEFAULT_FILE_NAME: &'static str = "log";
@@ -189,14 +200,14 @@ impl Rolling {
         let expanded_path = try_expand_env_vars(p.as_ref());
         let (writer, meta) = {
             let writer = Self::new_writer(&expanded_path).map_err(|e| Error::CreateFailed {
-                path: expanded_path.clone().into_owned(),
+                path:   expanded_path.clone().into_owned(),
                 source: e,
             })?;
             let meta = writer
                 .get_ref()
                 .metadata()
                 .map_err(|e| Error::MetadataFailed {
-                    path: expanded_path.clone().into_owned(),
+                    path:   expanded_path.clone().into_owned(),
                     source: e,
                 })?;
             (writer, LogFileMeta::from_meta(&meta))
@@ -266,7 +277,7 @@ impl Rolling {
     /// pattern: "{filename}.{}".
     ///
     /// ```ignore
-    ///
+    /// 
     /// make_qualified_pattern(Path::from("./foo/bar.log"), None); // -> "./foo/bar.log.{}"
     /// make_qualified_pattern(Path::from("./foo/bar.log"), Some("bar_roll.{}")); // -> "./foo/bar_roll.{}"
     /// ```

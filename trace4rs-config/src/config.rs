@@ -2,7 +2,10 @@
 
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
+    collections::{
+        HashMap,
+        HashSet,
+    },
     result,
     str::FromStr,
 };
@@ -10,10 +13,18 @@ use std::{
 #[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{
+    Deserialize,
+    Deserializer,
+    Serialize,
+    Serializer,
+};
 use tracing::level_filters;
 
-use crate::error::{Error, Result};
+use crate::error::{
+    Error,
+    Result,
+};
 
 /// The root configuration object containing everything necessary to build a
 /// `trace4rs::Handle`.
@@ -23,7 +34,7 @@ use crate::error::{Error, Result};
 pub struct Config {
     /// The default logger, which must be configured.
     #[cfg_attr(feature = "serde", serde(rename = "root", alias = "default"))]
-    pub default: Logger,
+    pub default:   Logger,
     /// Appenders are assigned an id of your choice and configure actual log
     /// message output.
     #[cfg_attr(
@@ -37,7 +48,7 @@ pub struct Config {
         feature = "in-order-serialization",
         serde(serialize_with = "ordered_map")
     )]
-    pub loggers: HashMap<Target, Logger>,
+    pub loggers:   HashMap<Target, Logger>,
 }
 
 /// # Errors
@@ -80,15 +91,18 @@ impl Default for Config {
 impl Config {
     /// A configuration for `INFO` and above to be logged to stdout.
     fn console_config() -> Config {
-        use literally::{hmap, hset};
+        use literally::{
+            hmap,
+            hset,
+        };
 
         Config {
-            default: Logger {
-                level: LevelFilter::INFO,
+            default:   Logger {
+                level:     LevelFilter::INFO,
                 appenders: hset! { "stdout" },
-                format: Format::default(),
+                format:    Format::default(),
             },
-            loggers: hmap! {},
+            loggers:   hmap! {},
             appenders: hmap! {
                 "stdout" => Appender::Console
             },
@@ -135,12 +149,12 @@ pub struct Logger {
         serde(serialize_with = "ordered_set")
     )]
     pub appenders: HashSet<AppenderId>,
-    pub level: LevelFilter,
+    pub level:     LevelFilter,
     #[cfg_attr(
         feature = "serde",
         serde(default = "Format::default", skip_serializing_if = "Format::is_normal")
     )]
-    pub format: Format,
+    pub format:    Format,
 }
 
 #[cfg(feature = "serde")]
@@ -315,7 +329,7 @@ pub enum Appender {
         path: String,
     },
     RollingFile {
-        path: String,
+        path:   String,
         #[cfg_attr(feature = "serde", serde(rename = "rolloverPolicy"))]
         policy: Policy,
     },
@@ -424,15 +438,18 @@ impl Policy {
 mod test {
     use literally::hset;
 
-    use super::{LevelFilter, Logger};
+    use super::{
+        LevelFilter,
+        Logger,
+    };
     use crate::config::Format;
 
     #[test]
     fn test_format_serde() {
         let lgr = Logger {
             appenders: hset! {},
-            level: LevelFilter::OFF,
-            format: Format::Normal,
+            level:     LevelFilter::OFF,
+            format:    Format::Normal,
         };
         let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
         assert!(lgr_value.get("format").is_none());
@@ -441,8 +458,8 @@ mod test {
 
         let lgr = Logger {
             appenders: hset! {},
-            level: LevelFilter::OFF,
-            format: Format::MessageOnly,
+            level:     LevelFilter::OFF,
+            format:    Format::MessageOnly,
         };
         let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
         let fmt = lgr_value.get("format").unwrap().as_str().unwrap();
@@ -452,8 +469,8 @@ mod test {
 
         let lgr = Logger {
             appenders: hset! {},
-            level: LevelFilter::OFF,
-            format: Format::Custom("foobar".to_string()),
+            level:     LevelFilter::OFF,
+            format:    Format::Custom("foobar".to_string()),
         };
         let lgr_value = dbg!(serde_json::to_value(&lgr).unwrap());
         let fmt = lgr_value.get("format").unwrap().as_str().unwrap();

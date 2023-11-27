@@ -1,6 +1,9 @@
 use std::borrow::Cow;
 
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::{
+    Utf8Path,
+    Utf8PathBuf,
+};
 use regex::Captures;
 
 #[cfg(test)]

@@ -22,6 +22,7 @@ jobs:
           - nightly-2023-10-25
     steps:
       - uses: actions/checkout@v4
+      - uses: streetsidesoftware/cspell-action@v5
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
@@ -38,6 +39,9 @@ jobs:
         run: |
           cargo fmt -- --check
           cargo clippy -- -D warnings
+
+      - name: Spell
+        run: cspell --config ./cspell.json "**/*.{rs|md}"
 
   cargo:
     name: Build & Test

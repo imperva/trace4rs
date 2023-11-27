@@ -1,29 +1,40 @@
 #![allow(clippy::single_char_lifetime_names)]
 use std::io;
 
-use tracing::{metadata::LevelFilter, Event, Metadata, Subscriber};
+use tracing::{
+    metadata::LevelFilter,
+    Event,
+    Metadata,
+    Subscriber,
+};
 use tracing_subscriber::{
     fmt::{
         format::DefaultFields,
-        writer::{BoxMakeWriter, MakeWriterExt},
+        writer::{
+            BoxMakeWriter,
+            MakeWriterExt,
+        },
         Layer as FmtLayer,
     },
     layer::Context,
     registry::LookupSpan,
-    Layer, Registry,
-};
-
-use crate::{
-    appenders::Appenders,
-    config::{AppenderId, Target},
+    Layer,
+    Registry,
 };
 
 use super::formatter::EventFormatter;
+use crate::{
+    appenders::Appenders,
+    config::{
+        AppenderId,
+        Target,
+    },
+};
 
 pub struct Logger<Reg = Registry, N = DefaultFields, F = EventFormatter> {
-    level: LevelFilter,
+    level:  LevelFilter,
     target: Option<Target>,
-    layer: FmtLayer<Reg, N, F, BoxMakeWriter>,
+    layer:  FmtLayer<Reg, N, F, BoxMakeWriter>,
 }
 
 impl<Reg> Logger<Reg>
