@@ -21,24 +21,22 @@ jobs:
         toolchain:
           - nightly-2023-10-25
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Update local toolchain
-        run: |
-          rustup update ${{ matrix.toolchain }}
-          rustup default ${{ matrix.toolchain }}
-          rustup +${{ matrix.toolchain }} component add clippy rustfmt
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: "clippy, rustfmt"
 
       - name: Toolchain info
         run: |
-          cargo +${{ matrix.toolchain }} --version --verbose
-          cargo +${{ matrix.toolchain }} clippy --version
-          cargo +${{ matrix.toolchain }} fmt --version
+          cargo --version --verbose
+          cargo clippy --version
+          cargo fmt --version
 
       - name: Lint
         run: |
-          cargo +${{ matrix.toolchain }} fmt -- --check
-          cargo +${{ matrix.toolchain }} clippy -- -D warnings
+          cargo fmt -- --check
+          cargo clippy -- -D warnings
 
   cargo:
     name: Build & Test
@@ -53,7 +51,8 @@ jobs:
           - nightly
           - nightly-2023-10-25
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@nextest
 
       - name: Update local toolchain
         run: |
@@ -67,7 +66,7 @@ jobs:
       - name: Test
         run: |
           cargo +${{ matrix.toolchain }} check
-          cargo +${{ matrix.toolchain }} test --all ${{ matrix.features_arg }}
+          cargo +${{ matrix.toolchain }} nextest --all ${{ matrix.features_arg }}
 
       - name: Build
         run: |
@@ -83,7 +82,7 @@ jobs:
       BENCHER_VERSION: 0.2.27
       BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install
         run: |
           rustup update
