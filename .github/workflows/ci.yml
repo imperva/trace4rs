@@ -74,22 +74,22 @@ jobs:
           cargo +${{ matrix.toolchain }} build ${{ matrix.features_arg }} --release
 
   benchmark:
+    if: github.ref == 'refs/heads/main'
     name: Run benchmarks
     runs-on: ubuntu-latest
     env:
       BENCHER_PROJECT: trace4rs
+      BENCHER_BRANCH: main
       BENCHER_TESTBED: ubuntu-latest
-      BENCHER_ADAPTER: rust
-      BENCHER_VERSION: 0.2.27
+      BENCHER_ADAPTER: rust_criterion
       BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
     steps:
       - uses: actions/checkout@v3
-      - name: Install
+      - uses: bencherdev/bencher@main
+      - name: Install Rust Nightly
         run: |
           rustup update
           rustup toolchain install nightly
-          wget https://github.com/bencherdev/bencher/releases/download/v${BENCHER_VERSION}/bencher_${BENCHER_VERSION}_amd64.deb
-          sudo dpkg -i bencher_${BENCHER_VERSION}_amd64.deb
       - name: Benchmark with Bencher
-        run: bencher run --if-branch $GITHUB_REF_NAME --err "cargo bench"
+        run: bencher run --err "cargo bench"
 
