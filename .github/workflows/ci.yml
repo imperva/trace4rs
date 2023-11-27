@@ -27,7 +27,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: "clippy, rustfmt"
 
-      - name: Toolchain info
+      - name: Info
         run: |
           cargo --version --verbose
           cargo clippy --version
@@ -52,25 +52,24 @@ jobs:
           - nightly-2023-10-25
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
       - uses: taiki-e/install-action@nextest
 
-      - name: Update local toolchain
+      - name: Info
         run: |
-          rustup update ${{ matrix.toolchain }}
-
-      - name: Toolchain info
-        run: |
-          cargo +${{ matrix.toolchain }} --version --verbose
-          rustc +${{ matrix.toolchain }} --version
+          cargo --version --verbose
+          rustc --version
 
       - name: Test
         run: |
-          cargo +${{ matrix.toolchain }} check
-          cargo +${{ matrix.toolchain }} nextest --all ${{ matrix.features_arg }}
+          cargo check
+          cargo nextest --all ${{ matrix.features_arg }}
 
       - name: Build
         run: |
-          cargo +${{ matrix.toolchain }} build ${{ matrix.features_arg }} --release
+          cargo build ${{ matrix.features_arg }} --release
 
   benchmark:
     name: Run benchmarks
