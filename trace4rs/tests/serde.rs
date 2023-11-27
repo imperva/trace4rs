@@ -1,5 +1,4 @@
 #![cfg(feature = "serde")]
-use std::convert::TryInto;
 
 use trace4rs::{
     config::{Appender, AppenderId, LevelFilter, Target},
@@ -117,7 +116,7 @@ fn test_de() {
     );
 
     // now lets convert this to a Handle
-    let _handle: crate::Handle = parsed.try_into().unwrap();
+    let (_handle, _s): (Handle, _) = Handle::from_config(&parsed).unwrap();
 }
 
 #[test]

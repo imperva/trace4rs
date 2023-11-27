@@ -42,8 +42,8 @@ fn test_filter() {
     .unwrap();
 
     let _rt = tokio::runtime::Runtime::new().unwrap();
-    let handle = Handle::try_from(conf).unwrap();
-    tracing::subscriber::set_global_default(handle.subscriber()).unwrap();
+    let (_handle, s) = <Handle>::from_config(&conf).unwrap();
+    tracing::subscriber::set_global_default(s).unwrap();
     tracing_log::LogTracer::init().unwrap();
 
     sleep(Duration::from_millis(100));
