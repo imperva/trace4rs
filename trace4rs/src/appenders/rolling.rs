@@ -91,7 +91,6 @@ impl FixedWindow {
                 // holding max rolls, saturation should be fine
                 if c.saturating_add(1) == self.count {
                     if c == 0 {
-                        // if self.last = Some(0) and self.count = 1: skip
                         break 'outer;
                     }
                     // We skip the last file if we're at the max so it'll get overwritten.
