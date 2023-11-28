@@ -15,18 +15,19 @@
 
 mod appenders;
 mod env;
-mod handle;
 mod subscriber;
 
 pub mod error;
+pub mod handle;
 #[cfg(test)]
 mod test;
 
 pub use appenders::Appender;
-pub use handle::{
-    init_with_metrics,
-    Handle,
+pub use error::{
+    Error,
+    Result,
 };
+pub use handle::Handle;
 pub use trace4rs_config::{
     config,
     config::Config,

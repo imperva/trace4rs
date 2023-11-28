@@ -33,7 +33,6 @@ trace4rs-config.workspace = true
 trace4rs-fmtorp.workspace = true
 utc-offset.workspace = true
 camino.workspace = true
-tracing-span-tree.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
@@ -47,6 +46,8 @@ trace4rs-config = { workspace = true, features = ["in-order-serialization"] }
 
 [[bench]]
 name = "trace4rs_bench"
+harness = false
 
 [[bench]]
 name = "log4rs_bench"
+harness = false

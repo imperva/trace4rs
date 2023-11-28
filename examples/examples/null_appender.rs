@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use tokio::{
     fs,
     time::{
@@ -21,7 +19,7 @@ async fn main() {
     let log_path = tmp_guard.path().join("file.log");
 
     // Create the handle
-    let handle = {
+    let config = {
         let default = config::Logger {
             level:     config::LevelFilter::TRACE,
             appenders: literally::hset! {"file"},
@@ -45,15 +43,14 @@ async fn main() {
                 "hush" => hush,
             }
         };
-        let config = Config {
+        Config {
             default,
             loggers,
             appenders,
-        };
-
-        Handle::try_from(config).unwrap()
+        }
     };
-    tracing::subscriber::set_global_default(handle.subscriber()).unwrap();
+    let (_h, s) = <Handle>::from_config(&config).unwrap();
+    tracing::subscriber::set_global_default(s).unwrap();
     tracing_log::LogTracer::init().unwrap();
 
     sleep(Duration::from_millis(100)).await;
@@ -61,9 +58,9 @@ async fn main() {
     log::trace!("this should go to file");
     sleep(Duration::from_millis(100)).await;
 
-    println!("path: {}", log_path.to_string_lossy());
+    println!("path is: {}", log_path.to_string_lossy());
     let file_content = fs::read_to_string(log_path).await.unwrap();
-    println!("file: {}", file_content);
+    println!("file content: {}", file_content);
     assert!(file_content.contains("this should go to file"));
     assert!(!file_content.contains("this should go nowhere"));
 }
