@@ -39,7 +39,7 @@ static NORMAL_FMT: Lazy<Format<Full, UtcOffsetTime>> =
 pub enum EventFormatter {
     Normal,
     MessageOnly,
-    Custom(CustomFormatter),
+    Custom(FmtorpFormatter),
 }
 
 impl Default for EventFormatter {
@@ -54,7 +54,7 @@ impl From<ConfigFormat> for EventFormatter {
             ConfigFormat::Normal => Self::Normal,
             ConfigFormat::MessageOnly => Self::MessageOnly,
             ConfigFormat::Custom(s) => {
-                match CustomFormatter::new(s) {
+                match FmtorpFormatter::new(s) {
                     Ok(c) => Self::Custom(c),
                     #[allow(clippy::print_stderr)] // necessary error surfacing
                     Err(e) => {
@@ -163,11 +163,11 @@ where
 
 /// EAS: Follow strat from `NORMAL_FMT`
 #[derive(Debug)]
-pub struct CustomFormatter {
+pub struct FmtorpFormatter {
     fmtr: trace4rs_fmtorp::Fmtr<'static>,
 }
 
-impl CustomFormatter {
+impl FmtorpFormatter {
     fn new(fmt_str: impl Into<Cow<'static, str>>) -> Result<Self, trace4rs_fmtorp::Error> {
         let fmtr = trace4rs_fmtorp::Fmtr::new(fmt_str, &fields::FIELD_SET)?;
 

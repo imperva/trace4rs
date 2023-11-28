@@ -61,9 +61,10 @@ tokio = { version = "1.13.0", features = [
 ] }
 
 [workspace.lints.clippy]
-all = "warn"                          # correctness, sus, style, complexity, perf
+all = "warn"                                                # correctness, sus, style, complexity, perf
 pedantic = "warn"
 cargo = "warn"
+module_name_repetitions = { priority = 1, level = "allow" }
 assertions_on_result_states = "warn"
 arithmetic_side_effects = "warn"
 create_dir = "warn"
@@ -74,7 +75,7 @@ filetype_is_file = "warn"
 format_push_string = "warn"
 indexing_slicing = "warn"
 lossy_float_literal = "warn"
-mem_forget = "warn"                   # Use ManuallyDrop
+mem_forget = "warn"                                         # Use ManuallyDrop
 missing_assert_message = "warn"
 missing_asserts_for_indexing = "warn"
 multiple_inherent_impl = "warn"

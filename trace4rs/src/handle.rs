@@ -98,6 +98,10 @@ where
     }
 
     /// Initialize trace4rs from a `Config` with an additional layer
+    ///
+    /// # Errors
+    ///
+    /// - `Error::Config`: Failure to interpret the Config object
     pub fn from_config_with<ExtLyr>(
         config: &Config,
         extra: ExtLyr,
@@ -109,7 +113,7 @@ where
         Ok(Handle::from_layers_with(layers, extra))
     }
 
-    /// Builds `Self` from `Layers` and an ExtLyr to be layered on top.
+    /// Builds `Self` from `Layers` and an `ExtLyr` to be layered on top.
     fn from_layers_with<ExtLyr>(
         layers: T4Layer<Reg>,
         extra: ExtLyr,
