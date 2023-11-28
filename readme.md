@@ -22,4 +22,6 @@ See for yourself with `cargo bench --features tracing-macros`
 
 ## Todo
 
+- verify cspell working
 - add an example for metrics functionality in lieu of a pub method
+- remove custom_test_frameworks usage

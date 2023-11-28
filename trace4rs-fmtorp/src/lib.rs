@@ -123,7 +123,8 @@ impl<'fmtstr> Fmtr<'fmtstr> {
             #[allow(clippy::indexing_slicing)]
             write!(writer.by_ref(), "{}", &self.fmt_str[last..*range.start()])?;
 
-            // unwrap ok since idxs coming from same vec
+            // unseparated
+            // unwrap ok since indexes coming from same vec
             #[allow(clippy::unwrap_used)]
             let field = self.field_from_id(i).unwrap();
 

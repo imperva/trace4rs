@@ -61,7 +61,7 @@ tokio = { version = "1.13.0", features = [
 ] }
 
 [workspace.lints.clippy]
-all = "warn"                                                # correctness, sus, style, complexity, perf
+all = "warn"
 pedantic = "warn"
 cargo = "warn"
 module_name_repetitions = { priority = 1, level = "allow" }
