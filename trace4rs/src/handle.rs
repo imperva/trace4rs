@@ -1,16 +1,7 @@
 use std::sync::Arc;
 
-use tracing::{
-    Level,
-    Subscriber,
-};
-use tracing_span_tree::SpanTree;
+use tracing::Subscriber;
 use tracing_subscriber::{
-    filter::{
-        Filtered,
-        Targets,
-    },
-    fmt::MakeWriter,
     layer::{
         self,
         Layer,
@@ -32,25 +23,6 @@ pub type T4<Reg> = reload::Layer<T4Layer<Reg>, Reg>;
 pub type T4H<Reg> = reload::Handle<T4Layer<Reg>, Reg>;
 pub type LayeredT4<Reg> = Layered<T4<Reg>, Reg>;
 pub type ExtendedT4<Reg, ExtLyr> = Layered<ExtLyr, LayeredT4<Reg>>;
-
-pub type FilteredST<Reg, Wrt> = Filtered<SpanTree<Wrt>, Targets, LayeredT4<Reg>>;
-
-/// Init a `Handle` and `Subscriber` with span metrics collection.
-/// The writer argument is where the said metrics will be written.
-pub fn init_with_metrics<Reg, Wrt>(
-    target: impl Into<String>,
-    writer: Wrt,
-) -> (Handle<Reg>, ExtendedT4<Reg, FilteredST<Reg, Wrt>>)
-where
-    Wrt: for<'a> MakeWriter<'a> + 'static,
-    Reg: Subscriber + for<'a> LookupSpan<'a> + Default + Send + Sync,
-{
-    let layer = tracing_span_tree::span_tree_with(writer);
-    let filter = Targets::new().with_target(target, Level::TRACE);
-    let extra = layer.with_filter(filter);
-
-    Handle::new_with(extra)
-}
 
 /// A handle with convenience functions to reload a trace4rs `Layer`.
 /// Methods to produce a handle also produce the `Subscriber` which can be

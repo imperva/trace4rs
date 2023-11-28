@@ -1,10 +1,9 @@
-#![feature(custom_test_frameworks)]
-#![test_runner(criterion::runner)]
-
 use std::env;
 
 use criterion::{
     black_box,
+    criterion_group,
+    criterion_main,
     Criterion,
 };
 use trace4rs::{
@@ -26,7 +25,6 @@ macro_rules! do_log {
     }};
 }
 
-#[criterion_macro::criterion]
 fn bench_appenders(c: &mut Criterion) {
     let tmp_guard = tempfile::tempdir().unwrap();
     env::set_current_dir(tmp_guard.path()).unwrap();
@@ -91,3 +89,6 @@ fn mk_handle() -> (Handle, impl Subscriber) {
 
     Handle::from_config(&config).unwrap()
 }
+
+criterion_group!(benches, bench_appenders);
+criterion_main!(benches);

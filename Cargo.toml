@@ -2,7 +2,7 @@ cargo-features = ["workspace-inheritance"]
 
 [workspace]
 resolver = "2"
-members = ["trace4rs", "trace4rs-config", "trace4rs-fmtorp"]
+members = ["trace4rs", "trace4rs-config", "trace4rs-fmtorp", "examples"]
 
 [workspace.package]
 version = "0.5.1"
@@ -41,11 +41,11 @@ tracing-subscriber = { version = "0.3", features = [
 tracing-log = "0.2"
 time = { version = "0.3", features = ["formatting", "macros"] }
 path-absolutize = "3.0.11"
+trace4rs = { version = "*", path = "trace4rs" }
 trace4rs-config = { version = "*", path = "trace4rs-config" }
 trace4rs-fmtorp = { version = "*", path = "trace4rs-fmtorp" }
 utc-offset = "0.4.0"
 camino = "1.1.2"
-tracing-span-tree = { git = "https://github.com/estk/tracing-span-tree" }
 criterion = "0.5.0"
 criterion-macro = "0.4.0"
 log4rs = "1.0.0"
