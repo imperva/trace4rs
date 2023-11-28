@@ -1,0 +1,46 @@
+allowCompoundWords: true
+languageSettings:
+  - languageId: rust
+    ignoreRegExpList:
+      - rust-string_binary
+      - rust-string_raw
+      - rust-string
+patterns:
+  - name: rust-string
+    pattern: /(")[^\1]*?\1/g
+  - name: rust-string-binary
+    pattern: /\bbr?(").*?\1/gi
+  - name: rust-string-raw
+    pattern: /\bu?r#(").*?\1#/gi
+dictionaries:
+  - rust
+  - cpp
+  - c
+  - bash
+  - python
+ignorePaths:
+  - Cargo.lock
+  - target
+minWordLength: 5
+userWords:
+  - appender
+  - appenders
+  - fmtorp
+  - fmtr
+  - fmtstr
+  - hmap
+  - hset
+  - Lyrd
+  - messageonly
+  - schemars
+  - strt
+  - targ
+  - thiserror
+  - strat
+  - replacen
+  - stabilized
+  - Meester
+  - unseparated
+  - dtolnay
+  - rustc
+  - taiki

@@ -16,6 +16,7 @@
 mod appenders;
 mod env;
 mod handle;
+mod subscriber;
 
 pub mod error;
 #[cfg(test)]
@@ -23,9 +24,8 @@ mod test;
 
 pub use appenders::Appender;
 pub use handle::{
-    init_console_logger,
+    init_with_metrics,
     Handle,
-    TraceLogger,
 };
 pub use trace4rs_config::{
     config,

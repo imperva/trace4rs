@@ -1,2 +1,109 @@
+cargo-features = ["workspace-inheritance"]
+
 [workspace]
+resolver = "2"
 members = ["trace4rs", "trace4rs-config", "trace4rs-fmtorp"]
+
+[workspace.package]
+version = "0.5.1"
+authors = [
+    "Evan Simmons <evan.simmons@imperva.com>",
+    "Everett Pompeii <everett.pompeii@imperva.com>",
+    "Richard Meester <richard.meester@imperva.com>",
+]
+edition = "2021"
+license = "MIT"
+keywords = ["tracing", "logging", "log4rs"]
+repository = "https://github.com/imperva/trace4rs"
+readme = "readme.md"
+categories = ["development-tools"]
+
+[profile.dev]
+opt-level = 1
+[profile.dev.package."*"]
+opt-level = 3
+
+[workspace.dependencies]
+literally = "0.1.3"
+log = "0.4.14"
+once_cell = "1.8.0"
+parking_lot = "0.12.0"
+regex = "1.5.4"
+thiserror = "1.0.29"
+tracing = "0.1.0"
+tracing-subscriber = { version = "0.3", features = [
+    "std",
+    "fmt",
+    "time",
+    "local-time",
+    "registry",
+] }
+tracing-log = "0.2"
+time = { version = "0.3", features = ["formatting", "macros"] }
+path-absolutize = "3.0.11"
+trace4rs-config = { version = "*", path = "trace4rs-config" }
+trace4rs-fmtorp = { version = "*", path = "trace4rs-fmtorp" }
+utc-offset = "0.4.0"
+camino = "1.1.2"
+tracing-span-tree = { git = "https://github.com/estk/tracing-span-tree" }
+criterion = "0.5.0"
+criterion-macro = "0.4.0"
+log4rs = "1.0.0"
+serde = "1.0.130"
+serde_json = "1.0.68"
+tempfile = "3.2.0"
+tokio = { version = "1.13.0", features = [
+    "rt",
+    "rt-multi-thread",
+    "macros",
+    "time",
+    "fs",
+] }
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+cargo = "warn"
+module_name_repetitions = { priority = 1, level = "allow" }
+assertions_on_result_states = "warn"
+arithmetic_side_effects = "warn"
+create_dir = "warn"
+deref_by_slicing = "warn"
+empty_drop = "warn"
+empty_structs_with_brackets = "warn"
+filetype_is_file = "warn"
+format_push_string = "warn"
+indexing_slicing = "warn"
+lossy_float_literal = "warn"
+mem_forget = "warn"                                         # Use ManuallyDrop
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+multiple_inherent_impl = "warn"
+mutex_atomic = "warn"
+needless_raw_strings = "warn"
+panic_in_result_fn = "warn"
+partial_pub_fields = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_type_annotations = "warn"
+self_named_module_files = "warn"
+semicolon_outside_block = "warn"
+shadow_unrelated = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+tests_outside_test_module = "warn"
+undocumented_unsafe_blocks = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unseparated_literal_suffix = "warn"
+unwrap_in_result = "warn"
+unwrap_used = "warn"
+verbose_file_reads = "warn"
+
+# Enable when stabilized
+# allow_attributes = "warn"
+# allow_attributes_without_reason = "warn"
+
+# Unsure of
+# absolute_paths = "warn"

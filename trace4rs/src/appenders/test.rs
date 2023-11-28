@@ -15,7 +15,7 @@ use parking_lot::Mutex;
 use super::rolling::{
     self,
     Roller,
-    RollingFile,
+    Rolling,
     Trigger,
 };
 use crate::{
@@ -145,7 +145,7 @@ fn correct_paths() {
     let trigger = Trigger::Size { limit: 10 };
     let roller = Roller::Delete;
     let mut appender = Appender::RollingFile(Arc::new(Mutex::new(
-        RollingFile::new(path.to_str().unwrap(), trigger, roller).unwrap(),
+        Rolling::new(path.to_str().unwrap(), trigger, roller).unwrap(),
     )));
 
     // sanity check/add some bytes to the file
@@ -181,7 +181,7 @@ fn size_delete_roll() {
     let roller = Roller::Delete;
 
     let mut appender = Appender::RollingFile(Arc::new(Mutex::new(
-        RollingFile::new(path.to_str().unwrap(), trigger, roller).unwrap(),
+        Rolling::new(path.to_str().unwrap(), trigger, roller).unwrap(),
     )));
     let buf1 = "123456789".to_string();
     appender.write_all(buf1.as_bytes()).unwrap();
@@ -215,7 +215,7 @@ fn size_window_roll() {
 fn size_window_roll_no_pattern() {
     let tmpdir = tempfile::tempdir().unwrap();
     let path = Utf8Path::from_path(tmpdir.path()).unwrap().join("foo.log");
-    let pattern = rolling::RollingFile::make_qualified_pattern(&path, None);
+    let pattern = rolling::Rolling::make_qualified_pattern(&path, None);
     let appender = get_appender(&path, &None);
     window_roll(&path, pattern, appender);
 }
@@ -235,7 +235,7 @@ fn size_window_roll_no_pattern_relative() {
     let tmpdir = tempfile::tempdir().unwrap();
     let path = Utf8Path::from_path(tmpdir.path()).unwrap().join("foo.log");
     let rel_path = as_rel_path(&path);
-    let pattern = rolling::RollingFile::make_qualified_pattern(&path, None);
+    let pattern = rolling::Rolling::make_qualified_pattern(&path, None);
     let appender = get_appender(&rel_path, &None);
     window_roll(&path, pattern, appender);
 }

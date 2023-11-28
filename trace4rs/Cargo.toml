@@ -1,59 +1,49 @@
 [package]
 name = "trace4rs"
-version = "0.5.1"
-edition = "2021"
 description = "log4rs like usability with the `tracing` crate as the base"
-keywords = ["tracing", "logging", "log4rs"]
-authors = ["Evan Simmons", "Everett Pompeii", "Richard Meester"]
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+keywords.workspace = true
+repository.workspace = true
+readme.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
 
 [features]
 tracing-macros = []               # internal, for benches
 serde = ["trace4rs-config/serde"]
 
 [dependencies]
-literally = "0.1.3"
-log = "0.4.14"
-once_cell = "1.8.0"
-parking_lot = "0.12.0"
-regex = "1.5.4"
-thiserror = "1.0.29"
-tracing = "0.1.0"
-tracing-subscriber = { version = "0.3", features = [
-    "std",
-    "fmt",
-    "time",
-    "local-time",
-    "registry",
-] }
-tracing-log = "0.1.2"
-time = { version = "=0.3.20", features = ["formatting", "macros"] }
-path-absolutize = "3.0.11"
-trace4rs-config = { version = "0.5.1", path = "../trace4rs-config" }
-trace4rs-fmtorp = { version = "0.5.1", path = "../trace4rs-fmtorp" }
-utc-offset = "0.3.0"
-camino = "1.1.2"
-rustversion = "1.0.14"
+literally.workspace = true
+log.workspace = true
+once_cell.workspace = true
+parking_lot.workspace = true
+regex.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-log.workspace = true
+time.workspace = true
+path-absolutize.workspace = true
+trace4rs-config.workspace = true
+trace4rs-fmtorp.workspace = true
+utc-offset.workspace = true
+camino.workspace = true
+tracing-span-tree.workspace = true
 
 [dev-dependencies]
-criterion = "0.4.0"
-criterion-macro = "0.4.0"
-literally = "0.1.3"
-log4rs = "1.0.0"
-serde = "1.0.130"
-serde_json = "1.0.68"
-static_assertions = "1.1.0"
-tempfile = "3.2.0"
-tokio = { version = "1.13.0", features = [
-    "rt",
-    "rt-multi-thread",
-    "macros",
-    "time",
-    "fs",
-] }
-trace4rs-config = { path = "../trace4rs-config", features = [
-    "in-order-serialization",
-] }
+criterion.workspace = true
+criterion-macro.workspace = true
+log4rs.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+trace4rs-config = { workspace = true, features = ["in-order-serialization"] }
 
 [[bench]]
 name = "trace4rs_bench"

@@ -1,4 +1,5 @@
 use std::{
+    cmp,
     fs,
     io::{
         self,
@@ -22,7 +23,7 @@ use crate::{
 
 /// `LogFileMeta` allows us to keep track of an estimated length for a given
 /// file.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct LogFileMeta {
     est_len: u64,
 }
@@ -47,7 +48,7 @@ impl LogFileMeta {
 }
 
 /// A Trigger which specifies when to roll a file.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Trigger {
     Size { limit: u64 },
 }
@@ -65,7 +66,7 @@ impl Trigger {
 ///   - foo.1
 ///   - foo.2 # the oldest rolled log file
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FixedWindow {
     /// invariant last < count
     last:    Option<usize>,
@@ -96,31 +97,18 @@ impl FixedWindow {
     fn roll(&mut self, path: &Utf8Path) -> io::Result<()> {
         // if None, we just need to roll to zero, which happens after this block
 
-        // see todo below
-        // 'outer: {
-        {
+        'outer: {
             if let Some(mut c) = self.last {
                 // holding max rolls, saturation should be fine
                 if c.saturating_add(1) == self.count {
-                    // if Some(0) and 1 = self.count we skip
                     if c == 0 {
-                        // todo: uncomment the following break and delete everything
-                        // after it in block once we can use `feature(label_break_value)`
-
-                        // break 'outer;
-                        self.inc_last();
-
-                        let new_path = self
-                            .pattern
-                            .replace(Self::INDEX_TOKEN, &Self::COUNT_BASE.to_string());
-
-                        return fs::rename(path, new_path);
+                        break 'outer;
                     }
                     // We skip the last file if we're at the max so it'll get overwritten.
                     c = c.saturating_sub(1);
                 }
 
-                while c > 0 && c > Self::COUNT_BASE {
+                while c > cmp::max(0, Self::COUNT_BASE) {
                     Self::pattern_roll(&self.pattern, c, c.saturating_add(1))?;
                     c = c.saturating_sub(1);
                 }
@@ -147,7 +135,7 @@ impl FixedWindow {
 }
 
 /// Roller specifies how to roll a file.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Roller {
     Delete,
     FixedWindow(FixedWindow),
@@ -178,14 +166,15 @@ impl Roller {
             },
             Self::Delete => fs::remove_file(path)?,
         }
-        writer.replace(RollingFile::new_writer(path)?);
+        writer.replace(Rolling::new_writer(path)?);
         Ok(())
     }
 }
 
 /// An appender which writes to a file and manages rolling said file, either to
 /// backups or by deletion.
-pub struct RollingFile {
+#[derive(Debug)]
+pub struct Rolling {
     path:    Utf8PathBuf,
     /// Writer will always be some except when it is being rolled or if there
     /// was an error initing a new writer after abandonment of the previous.
@@ -194,7 +183,7 @@ pub struct RollingFile {
     trigger: Trigger,
     roller:  Roller,
 }
-impl RollingFile {
+impl Rolling {
     const DEFAULT_FILE_NAME: &'static str = "log";
     const DEFAULT_ROLL_PATTERN: &'static str = "{filename}.{}";
     const FILE_NAME_TOKEN: &'static str = "{filename}";
@@ -332,7 +321,7 @@ impl RollingFile {
     }
 }
 
-impl io::Write for RollingFile {
+impl io::Write for Rolling {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if let Some(w) = &mut self.writer {
             let bs_written = w.write(buf)?;

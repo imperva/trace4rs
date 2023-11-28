@@ -1,7 +1,8 @@
 use core::num::ParseIntError;
+use std::result;
 
 /// A `trace4rs_config` Result.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = result::Result<T, Error>;
 
 /// An enum representing the possible errors encountered.
 #[derive(Debug, thiserror::Error)]

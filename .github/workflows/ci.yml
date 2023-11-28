@@ -19,26 +19,26 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - nightly-2022-06-25
+          - nightly-2023-10-25
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: streetsidesoftware/cspell-action@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: "clippy, rustfmt"
 
-      - name: Update local toolchain
+      - name: Info
         run: |
-          rustup update ${{ matrix.toolchain }}
-          rustup default ${{ matrix.toolchain }}
-          rustup +${{ matrix.toolchain }} component add clippy rustfmt
-
-      - name: Toolchain info
-        run: |
-          cargo +${{ matrix.toolchain }} --version --verbose
-          cargo +${{ matrix.toolchain }} clippy --version
-          cargo +${{ matrix.toolchain }} fmt --version
+          rustc --version
+          cargo --version --verbose
+          cargo clippy --version
+          cargo fmt --version
 
       - name: Lint
         run: |
-          cargo +${{ matrix.toolchain }} fmt -- --check
-          cargo +${{ matrix.toolchain }} clippy -- -D warnings
+          cargo fmt -- --check
+          cargo clippy -- -D warnings
 
   cargo:
     name: Build & Test
@@ -51,27 +51,27 @@ jobs:
           - stable
           - beta
           - nightly
-          - nightly-2022-06-25
+          - nightly-2023-10-25
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - uses: taiki-e/install-action@nextest
 
-      - name: Update local toolchain
+      - name: Info
         run: |
-          rustup update ${{ matrix.toolchain }}
-
-      - name: Toolchain info
-        run: |
-          cargo +${{ matrix.toolchain }} --version --verbose
-          rustc +${{ matrix.toolchain }} --version
+          cargo --version --verbose
+          rustc --version
 
       - name: Test
         run: |
-          cargo +${{ matrix.toolchain }} check
-          cargo +${{ matrix.toolchain }} test --all ${{ matrix.features_arg }}
+          cargo check
+          cargo nextest run --all ${{ matrix.features_arg }}
 
       - name: Build
         run: |
-          cargo +${{ matrix.toolchain }} build ${{ matrix.features_arg }} --release
+          cargo build --release ${{ matrix.features_arg }}
 
   benchmark:
     name: Run benchmarks
@@ -83,7 +83,7 @@ jobs:
       BENCHER_VERSION: 0.2.27
       BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install
         run: |
           rustup update

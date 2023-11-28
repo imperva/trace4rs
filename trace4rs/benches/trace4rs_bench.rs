@@ -1,4 +1,4 @@
-#![feature(custom_test_frameworks, stmt_expr_attributes)]
+#![feature(custom_test_frameworks)]
 #![test_runner(criterion::runner)]
 
 use std::env;
@@ -16,6 +16,7 @@ use trace4rs::{
     Config,
     Handle,
 };
+use tracing::Subscriber;
 macro_rules! do_log {
     (target: $target:literal, $($rst:tt)*) => {{
         #[cfg(not(feature = "tracing-macros"))]
@@ -29,10 +30,10 @@ macro_rules! do_log {
 fn bench_appenders(c: &mut Criterion) {
     let tmp_guard = tempfile::tempdir().unwrap();
     env::set_current_dir(tmp_guard.path()).unwrap();
-    let handle = mk_handle();
+    let (_h, s) = mk_handle();
 
     // Create the handle
-    tracing::subscriber::set_global_default(handle.subscriber()).unwrap();
+    tracing::subscriber::set_global_default(s).unwrap();
     c.bench_function("tracing_file", |b| {
         b.iter(|| do_log!(target: "file", "foobar"))
     });
@@ -41,7 +42,7 @@ fn bench_appenders(c: &mut Criterion) {
     });
 }
 
-fn mk_handle() -> Handle {
+fn mk_handle() -> (Handle, impl Subscriber) {
     let appenders = {
         let console = config::Appender::console();
         let file = config::Appender::File {
@@ -88,5 +89,5 @@ fn mk_handle() -> Handle {
         appenders,
     };
 
-    Handle::try_from(config).unwrap()
+    Handle::from_config(&config).unwrap()
 }

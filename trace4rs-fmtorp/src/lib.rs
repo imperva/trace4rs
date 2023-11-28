@@ -1,4 +1,3 @@
-#![allow(clippy::single_char_lifetime_names)]
 use core::fmt;
 use std::{
     borrow::Cow,
@@ -57,14 +56,14 @@ impl<'fmtstr> Fmtr<'fmtstr> {
                 }
                 // end match
                 if x == '}' {
-                    #[allow(clippy::integer_arithmetic)] // no overflow potential
+                    #[allow(clippy::arithmetic_side_effects)] // no overflow potential
                     if strt + 1 == xi {
                         return Err(Error::EmptyField);
                     }
                     field_ranges.push(strt..=xi);
                     // safe since we know the slice is non-empty and xi in bounds
                     // and no overflow potential
-                    #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
+                    #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
                     let ff = &fmt_str[(strt + 1)..xi];
                     if let Some(f) = fields.get(ff) {
                         field_names.push(*f);
@@ -100,6 +99,7 @@ impl<'fmtstr> Fmtr<'fmtstr> {
         })
     }
 
+    #[must_use]
     pub fn field_from_id(&self, i: usize) -> Option<&'static str> {
         self.field_names.get(i).copied()
     }
@@ -110,9 +110,9 @@ impl<'fmtstr> Fmtr<'fmtstr> {
     /// # Panics
     /// Panics should only happen on bugs.
     #[allow(clippy::unwrap_in_result)]
-    pub fn write<'writer>(
+    pub fn write(
         &self,
-        mut writer: format::Writer<'writer>,
+        mut writer: format::Writer<'_>,
         value_writer: &impl FieldValueWriter,
     ) -> fmt::Result {
         let mut last = 0;
@@ -123,14 +123,15 @@ impl<'fmtstr> Fmtr<'fmtstr> {
             #[allow(clippy::indexing_slicing)]
             write!(writer.by_ref(), "{}", &self.fmt_str[last..*range.start()])?;
 
-            // unwrap ok since idxs coming from same vec
+            // unseparated
+            // unwrap ok since indexes coming from same vec
             #[allow(clippy::unwrap_used)]
             let field = self.field_from_id(i).unwrap();
 
             value_writer.write_value(writer.by_ref(), field)?;
 
             // last may run off the end if last range
-            #[allow(clippy::integer_arithmetic)]
+            #[allow(clippy::arithmetic_side_effects)]
             {
                 last = range.end() + 1;
             }
