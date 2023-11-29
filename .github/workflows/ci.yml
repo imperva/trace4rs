@@ -32,7 +32,7 @@ jobs:
 
       - name: Info
         run: |
-          cargo binstall -y --git https://github.com/estk/cargo-sort cargo-sort
+          cargo binstall -y --git https://github.com/estk/cargo-manifmt cargo-manifmt@2.0.0
           rustc --version
           cargo --version --verbose
           cargo clippy --version
@@ -42,7 +42,7 @@ jobs:
         run: |
           cargo fmt -- --check
           cargo clippy -- -D warnings
-          cargo sort --check
+          cargo manifmt --check
 
   cargo:
     name: Build & Test

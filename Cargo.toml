@@ -2,7 +2,7 @@ cargo-features = ["workspace-inheritance"]
 
 [workspace]
 resolver = "2"
-members = [ "examples","trace4rs", "trace4rs-config", "trace4rs-fmtorp"]
+members = ["examples", "trace4rs", "trace4rs-config", "trace4rs-fmtorp"]
 
 [workspace.package]
 version = "0.5.1"
