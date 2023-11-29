@@ -23,6 +23,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: streetsidesoftware/cspell-action@v5
+      - uses: cargo-bins/cargo-binstall@main
+
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
@@ -30,6 +32,7 @@ jobs:
 
       - name: Info
         run: |
+          cargo binstall -y --git https://github.com/estk/cargo-manifmt cargo-manifmt@2.0.0
           rustc --version
           cargo --version --verbose
           cargo clippy --version
@@ -39,6 +42,7 @@ jobs:
         run: |
           cargo fmt -- --check
           cargo clippy -- -D warnings
+          cargo manifmt --check
 
   cargo:
     name: Build & Test

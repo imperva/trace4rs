@@ -2,7 +2,7 @@ cargo-features = ["workspace-inheritance"]
 
 [workspace]
 resolver = "2"
-members = ["trace4rs", "trace4rs-config", "trace4rs-fmtorp", "examples"]
+members = ["examples", "trace4rs", "trace4rs-config", "trace4rs-fmtorp"]
 
 [workspace.package]
 version = "0.5.1"
@@ -18,40 +18,12 @@ repository = "https://github.com/imperva/trace4rs"
 readme = "readme.md"
 categories = ["development-tools"]
 
-[profile.dev]
-opt-level = 1
-[profile.dev.package."*"]
-opt-level = 3
-
 [workspace.dependencies]
-literally = "0.1.3"
-log = "0.4.14"
-once_cell = "1.8.0"
-parking_lot = "0.12.0"
-regex = "1.5.4"
-thiserror = "1.0.29"
-tracing = "0.1.0"
-tracing-subscriber = { version = "0.3", features = [
-    "std",
-    "fmt",
-    "time",
-    "local-time",
-    "registry",
-] }
-tracing-log = "0.2"
-time = { version = "0.3", features = ["formatting", "macros"] }
-path-absolutize = "3.0.11"
 trace4rs = { version = "*", path = "trace4rs" }
 trace4rs-config = { version = "*", path = "trace4rs-config" }
 trace4rs-fmtorp = { version = "*", path = "trace4rs-fmtorp" }
-utc-offset = "0.4.0"
-camino = "1.1.2"
-criterion = "0.5.0"
-criterion-macro = "0.4.0"
-log4rs = "1.0.0"
-serde = "1.0.130"
-serde_json = "1.0.68"
-tempfile = "3.2.0"
+
+time = { version = "0.3", features = ["formatting", "macros"] }
 tokio = { version = "1.13.0", features = [
     "rt",
     "rt-multi-thread",
@@ -59,6 +31,31 @@ tokio = { version = "1.13.0", features = [
     "time",
     "fs",
 ] }
+tracing-subscriber = { version = "0.3", features = [
+    "std",
+    "fmt",
+    "time",
+    "local-time",
+    "registry",
+] }
+
+camino = "1.1.2"
+criterion = "0.5.0"
+criterion-macro = "0.4.0"
+literally = "0.1.3"
+log = "0.4.14"
+log4rs = "1.0.0"
+once_cell = "1.8.0"
+parking_lot = "0.12.0"
+path-absolutize = "3.0.11"
+regex = "1.5.4"
+serde = "1.0.130"
+serde_json = "1.0.68"
+tempfile = "3.2.0"
+thiserror = "1.0.29"
+tracing = "0.1.0"
+tracing-log = "0.2"
+utc-offset = "0.4.0"
 
 [workspace.lints.clippy]
 all = "warn"
@@ -100,6 +97,11 @@ unseparated_literal_suffix = "warn"
 unwrap_in_result = "warn"
 unwrap_used = "warn"
 verbose_file_reads = "warn"
+
+[profile.dev]
+opt-level = 1
+[profile.dev.package."*"]
+opt-level = 3
 
 # Enable when stabilized
 # allow_attributes = "warn"

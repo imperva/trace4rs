@@ -5,16 +5,17 @@ publish = false
 edition = "2021"
 rust-version = "1.67"
 
+[dev-dependencies]
+tracing-span-tree.git = "https://github.com/estk/tracing-span-tree" 
+
+literally.workspace = true
+log.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+trace4rs.workspace = true
+tracing.workspace = true
+tracing-log.workspace = true
+tracing-subscriber.workspace = true
+
 [lints]
 workspace = true
-
-[dev-dependencies]
-log.workspace = true
-tracing-log.workspace = true
-tempfile.workspace = true
-tracing-subscriber.workspace = true
-trace4rs.workspace = true
-literally.workspace = true
-tracing.workspace = true
-tokio.workspace = true
-tracing-span-tree = { git = "https://github.com/estk/tracing-span-tree" }

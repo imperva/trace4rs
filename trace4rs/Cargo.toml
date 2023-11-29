@@ -10,31 +10,30 @@ repository.workspace = true
 readme.workspace = true
 categories.workspace = true
 
-[lints]
-workspace = true
-
 [features]
 tracing-macros = []               # internal, for benches
 serde = ["trace4rs-config/serde"]
 
 [dependencies]
+camino.workspace = true
 literally.workspace = true
 log.workspace = true
 once_cell.workspace = true
 parking_lot.workspace = true
+path-absolutize.workspace = true
 regex.workspace = true
 thiserror.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
-tracing-log.workspace = true
 time.workspace = true
-path-absolutize.workspace = true
 trace4rs-config.workspace = true
 trace4rs-fmtorp.workspace = true
+tracing.workspace = true
+tracing-log.workspace = true
+tracing-subscriber.workspace = true
 utc-offset.workspace = true
-camino.workspace = true
 
 [dev-dependencies]
+trace4rs-config = { workspace = true, features = ["in-order-serialization"] }
+
 criterion.workspace = true
 criterion-macro.workspace = true
 log4rs.workspace = true
@@ -42,7 +41,9 @@ serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
-trace4rs-config = { workspace = true, features = ["in-order-serialization"] }
+
+[lints]
+workspace = true
 
 [[bench]]
 name = "trace4rs_bench"
