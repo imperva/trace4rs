@@ -10,18 +10,20 @@ repository.workspace = true
 readme.workspace = true
 categories.workspace = true
 
-[lints]
-workspace = true
-
 [features]
 in-order-serialization = ["serde"]
 
 [dependencies]
+schemars = { version = "0.8.3", optional = true }
+
+serde = { workspace = true, optional = true, features = ["derive"] }
+
 literally.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-serde = { workspace = true, optional = true, features = ["derive"] }
-schemars = { version = "0.8.3", optional = true }
 
 [dev-dependencies]
 serde_json.workspace = true
+
+[lints]
+workspace = true

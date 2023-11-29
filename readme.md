@@ -18,4 +18,5 @@ See for yourself with `cargo bench --features tracing-macros`
 ## Dev suggestions
 
 - `cargo install cargo-binstall`
+- `cargo install cargo-update`
 - `cargo install cargo-nextest`
