@@ -76,24 +76,3 @@ jobs:
       - name: Build
         run: |
           cargo build --release ${{ matrix.features_arg }}
-
-  benchmark:
-    name: Run benchmarks
-    runs-on: ubuntu-latest
-    env:
-      BENCHER_PROJECT: trace4rs
-      BENCHER_TESTBED: ubuntu-latest
-      BENCHER_ADAPTER: rust
-      BENCHER_VERSION: 0.2.27
-      BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install
-        run: |
-          rustup update
-          rustup toolchain install nightly
-          wget https://github.com/bencherdev/bencher/releases/download/v${BENCHER_VERSION}/bencher_${BENCHER_VERSION}_amd64.deb
-          sudo dpkg -i bencher_${BENCHER_VERSION}_amd64.deb
-      - name: Benchmark with Bencher
-        run: bencher run --if-branch $GITHUB_REF_NAME --err "cargo bench"
-
