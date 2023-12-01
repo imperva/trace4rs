@@ -1,6 +1,4 @@
 use std::{
-    convert::TryFrom,
-    sync::Arc,
     thread::sleep,
     time::Duration,
 };
@@ -17,7 +15,7 @@ use tracing::info;
 
 fn main() {
     // Create the handle
-    let handle = {
+    let config = {
         let file = config::Appender::File {
             path: "./file.log".into(),
         };
@@ -26,15 +24,14 @@ fn main() {
             appenders: literally::hset! {"file"},
             format:    Format::default(),
         };
-        let config = Config {
+        Config {
             default,
             loggers: Default::default(),
             appenders: literally::hmap! {"file" => file},
-        };
-
-        Arc::new(Handle::try_from(config).unwrap())
+        }
     };
-    tracing::subscriber::set_global_default(handle.subscriber()).unwrap();
+    let (_, s) = <Handle>::from_config(&config).unwrap();
+    tracing::subscriber::set_global_default(s).unwrap();
 
     for i in 0..usize::MAX {
         info!("log message: {}", i);

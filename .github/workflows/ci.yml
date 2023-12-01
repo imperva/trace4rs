@@ -19,26 +19,30 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - nightly-2022-06-25
+          - nightly-2023-10-25
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: streetsidesoftware/cspell-action@v5
+      - uses: cargo-bins/cargo-binstall@main
 
-      - name: Update local toolchain
-        run: |
-          rustup update ${{ matrix.toolchain }}
-          rustup default ${{ matrix.toolchain }}
-          rustup +${{ matrix.toolchain }} component add clippy rustfmt
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: "clippy, rustfmt"
 
-      - name: Toolchain info
+      - name: Info
         run: |
-          cargo +${{ matrix.toolchain }} --version --verbose
-          cargo +${{ matrix.toolchain }} clippy --version
-          cargo +${{ matrix.toolchain }} fmt --version
+          cargo binstall -y --git https://github.com/estk/cargo-manifmt cargo-manifmt@2.0.0
+          rustc --version
+          cargo --version --verbose
+          cargo clippy --version
+          cargo fmt --version
 
       - name: Lint
         run: |
-          cargo +${{ matrix.toolchain }} fmt -- --check
-          cargo +${{ matrix.toolchain }} clippy -- -D warnings
+          cargo fmt -- --check
+          cargo clippy -- -D warnings
+          cargo manifmt --check
 
   cargo:
     name: Build & Test
@@ -51,45 +55,24 @@ jobs:
           - stable
           - beta
           - nightly
-          - nightly-2022-06-25
+          - nightly-2023-10-25
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - uses: taiki-e/install-action@nextest
 
-      - name: Update local toolchain
+      - name: Info
         run: |
-          rustup update ${{ matrix.toolchain }}
-
-      - name: Toolchain info
-        run: |
-          cargo +${{ matrix.toolchain }} --version --verbose
-          rustc +${{ matrix.toolchain }} --version
+          cargo --version --verbose
+          rustc --version
 
       - name: Test
         run: |
-          cargo +${{ matrix.toolchain }} check
-          cargo +${{ matrix.toolchain }} test --all ${{ matrix.features_arg }}
+          cargo check
+          cargo nextest run --all ${{ matrix.features_arg }}
 
       - name: Build
         run: |
-          cargo +${{ matrix.toolchain }} build ${{ matrix.features_arg }} --release
-
-  benchmark:
-    if: github.ref == 'refs/heads/main'
-    name: Run benchmarks
-    runs-on: ubuntu-latest
-    env:
-      BENCHER_PROJECT: trace4rs
-      BENCHER_BRANCH: main
-      BENCHER_TESTBED: ubuntu-latest
-      BENCHER_ADAPTER: rust_criterion
-      BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: bencherdev/bencher@main
-      - name: Install Rust Nightly
-        run: |
-          rustup update
-          rustup toolchain install nightly
-      - name: Benchmark with Bencher
-        run: bencher run --err "cargo bench"
-
+          cargo build --release ${{ matrix.features_arg }}

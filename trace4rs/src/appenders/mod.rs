@@ -2,7 +2,9 @@
 use std::{
     collections::HashMap,
     convert::TryFrom,
-    fs::{self,},
+    fs::{
+        self,
+    },
     io::{
         self,
         LineWriter,
@@ -35,7 +37,7 @@ use crate::{
 };
 
 mod rolling;
-use rolling::RollingFile;
+use rolling::Rolling;
 
 #[cfg(test)]
 mod test;
@@ -45,7 +47,7 @@ type AppenderMap = HashMap<AppenderId, Appender>;
 
 /// Appenders holds the global map of appenders which can be referenced by
 /// Layers, it may be cheaply cloned.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Appenders {
     appenders: Arc<AppenderMap>,
 }
@@ -84,7 +86,7 @@ impl Deref for Appenders {
     type Target = AppenderMap;
 
     fn deref(&self) -> &Self::Target {
-        &*self.appenders
+        &self.appenders
     }
 }
 impl TryFrom<&HashMap<AppenderId, config::Appender>> for Appenders {
@@ -126,14 +128,14 @@ impl TryFrom<&config::Appender> for Appender {
 }
 
 /// An Appender represents a sink where logs can be written.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Appender {
     /// Logs are written to stdout.
     Console(Console),
     /// A file appender.
     File(Arc<Mutex<File>>),
     /// A file appender which rolls files.
-    RollingFile(Arc<Mutex<RollingFile>>),
+    RollingFile(Arc<Mutex<Rolling>>),
     /// Logs are ignored
     Null,
 }
@@ -184,7 +186,7 @@ impl Appender {
                 .unwrap_or_else(|| cp.to_path_buf())
                 .to_path_buf()
         };
-        let pattern = RollingFile::make_qualified_pattern(&abs_path, pattern_opt);
+        let pattern = Rolling::make_qualified_pattern(&abs_path, pattern_opt);
 
         let trigger = Trigger::Size {
             limit: config::Policy::calculate_maximum_file_size(size)?,
@@ -194,7 +196,7 @@ impl Appender {
         } else {
             Roller::new_fixed(pattern, count)
         };
-        Ok(Self::RollingFile(Arc::new(Mutex::new(RollingFile::new(
+        Ok(Self::RollingFile(Arc::new(Mutex::new(Rolling::new(
             abs_path, trigger, roller,
         )?))))
     }
@@ -277,11 +279,11 @@ impl io::Write for Appender {
 }
 
 /// An appender which writes to stdout.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct Console;
 impl Console {
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 }
 impl io::Write for Console {
@@ -295,6 +297,7 @@ impl io::Write for Console {
 }
 
 /// An appender which writes to a file.
+#[derive(Debug)]
 pub struct File {
     path:   Utf8PathBuf,
     writer: LineWriter<fs::File>,

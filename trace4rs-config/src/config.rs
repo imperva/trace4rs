@@ -19,7 +19,7 @@ use serde::{
     Serialize,
     Serializer,
 };
-use smart_default::SmartDefault;
+use tracing::level_filters;
 
 use crate::error::{
     Error,
@@ -54,14 +54,14 @@ pub struct Config {
 /// # Errors
 /// Returns an error if serialization fails
 #[cfg(feature = "in-order-serialization")]
-pub fn ordered_map<K, V, S>(
-    value: &HashMap<K, V>,
-    serializer: S,
-) -> std::result::Result<S::Ok, S::Error>
+pub fn ordered_map<K, V, Rs, Ser>(
+    value: &HashMap<K, V, Rs>,
+    serializer: Ser,
+) -> std::result::Result<Ser::Ok, Ser::Error>
 where
     K: Ord + Serialize,
     V: Serialize,
-    S: Serializer,
+    Ser: Serializer,
 {
     let ordered: std::collections::BTreeMap<_, _> = value.iter().collect();
     ordered.serialize(serializer)
@@ -70,7 +70,10 @@ where
 /// # Errors
 /// Returns an error if serialization fails
 #[cfg(feature = "in-order-serialization")]
-pub fn ordered_set<K, S>(value: &HashSet<K>, serializer: S) -> std::result::Result<S::Ok, S::Error>
+pub fn ordered_set<K, S, Rs>(
+    value: &HashSet<K, Rs>,
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error>
 where
     K: Ord + Serialize,
     S: Serializer,
@@ -229,7 +232,7 @@ mod format {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, SmartDefault)]
+#[derive(PartialEq, Eq, Clone, Debug, Default)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -261,10 +264,9 @@ impl Format {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "schemars", derive(JsonSchema), schemars(transparent))]
 pub struct LevelFilter(
-    #[cfg_attr(feature = "schemars", schemars(with = "String"))]
-    tracing::level_filters::LevelFilter,
+    #[cfg_attr(feature = "schemars", schemars(with = "String"))] level_filters::LevelFilter,
 );
-impl From<LevelFilter> for tracing::level_filters::LevelFilter {
+impl From<LevelFilter> for level_filters::LevelFilter {
     fn from(l: LevelFilter) -> Self {
         l.0
     }
@@ -272,12 +274,12 @@ impl From<LevelFilter> for tracing::level_filters::LevelFilter {
 
 #[rustfmt::skip] // eas: retain order
 impl LevelFilter {
-    pub const TRACE: Self = LevelFilter(tracing::level_filters::LevelFilter::TRACE);
-    pub const DEBUG: Self = LevelFilter(tracing::level_filters::LevelFilter::DEBUG);
-    pub const INFO: Self = LevelFilter(tracing::level_filters::LevelFilter::INFO);
-    pub const WARN: Self = LevelFilter(tracing::level_filters::LevelFilter::WARN);
-    pub const ERROR: Self = LevelFilter(tracing::level_filters::LevelFilter::ERROR);
-    pub const OFF: Self = LevelFilter(tracing::level_filters::LevelFilter::OFF);
+    pub const TRACE: Self = LevelFilter(level_filters::LevelFilter::TRACE);
+    pub const DEBUG: Self = LevelFilter(level_filters::LevelFilter::DEBUG);
+    pub const INFO: Self = LevelFilter(level_filters::LevelFilter::INFO);
+    pub const WARN: Self = LevelFilter(level_filters::LevelFilter::WARN);
+    pub const ERROR: Self = LevelFilter(level_filters::LevelFilter::ERROR);
+    pub const OFF: Self = LevelFilter(level_filters::LevelFilter::OFF);
     #[must_use] pub const fn maximum() -> Self {
         Self::TRACE
     }
@@ -305,7 +307,7 @@ impl<'de> Deserialize<'de> for LevelFilter {
     }
 }
 impl FromStr for LevelFilter {
-    type Err = <tracing::level_filters::LevelFilter as FromStr>::Err;
+    type Err = <level_filters::LevelFilter as FromStr>::Err;
 
     fn from_str(s: &str) -> result::Result<Self, Self::Err> {
         Ok(Self(FromStr::from_str(s)?))
@@ -338,6 +340,7 @@ impl Appender {
         Self::File { path: path.into() }
     }
 
+    #[must_use]
     pub fn console() -> Self {
         Self::Console
     }
@@ -408,10 +411,7 @@ impl Policy {
             Err(e) => return Err(e.into()),
         };
 
-        let unit = match unit {
-            Some(u) => u,
-            None => return Ok(number),
-        };
+        let Some(unit) = unit else { return Ok(number) };
 
         let bytes_number = if unit.eq_ignore_ascii_case("b") {
             Some(number)

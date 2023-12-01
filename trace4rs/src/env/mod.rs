@@ -11,7 +11,7 @@ mod test;
 
 #[allow(clippy::unwrap_used)] // ok since its a lit and tests hit this.
 static RE: once_cell::sync::Lazy<regex::Regex> =
-    once_cell::sync::Lazy::new(|| regex::Regex::new(r#"\$ENV\{([\w][\w|\d|\.|_]*)\}"#).unwrap());
+    once_cell::sync::Lazy::new(|| regex::Regex::new(r"\$ENV\{([\w][\w|\d|\.|_]*)\}").unwrap());
 
 pub(crate) fn expand_env_vars(path: &str) -> Cow<str> {
     RE.replace_all(path, |c: &Captures| {

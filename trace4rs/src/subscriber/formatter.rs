@@ -1,57 +1,33 @@
-#![allow(clippy::single_char_lifetime_names)]
-use core::fmt;
 use std::{
     borrow::Cow,
-    io,
+    fmt,
 };
 
 use once_cell::sync::Lazy;
+use trace4rs_fmtorp::FieldValueWriter;
 use tracing::{
     field::Visit,
-    metadata::LevelFilter,
     Event,
-    Metadata,
+    Subscriber,
 };
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{
     fmt::{
         format::{
             self,
-            DefaultFields,
             Format,
             Full,
             Writer,
         },
         time::FormatTime,
-        writer::{
-            BoxMakeWriter,
-            MakeWriterExt,
-        },
         FmtContext,
         FormatEvent,
         FormatFields,
-        Layer as FmtLayer,
     },
-    layer::{
-        Context,
-        Layered,
-    },
-    prelude::__tracing_subscriber_SubscriberExt,
-    Layer,
+    registry::LookupSpan,
 };
 
-use super::{
-    span_broker::SpanBroker,
-    PolyLayer,
-};
-use crate::{
-    appenders::Appenders,
-    config::{
-        AppenderId,
-        Format as ConfigFormat,
-        Target,
-    },
-};
+use crate::config::Format as ConfigFormat;
 
 const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
     time::format_description::well_known::Rfc3339;
@@ -59,94 +35,11 @@ const TIME_FORMAT: time::format_description::well_known::Rfc3339 =
 static NORMAL_FMT: Lazy<Format<Full, UtcOffsetTime>> =
     Lazy::new(|| Format::default().with_timer(UtcOffsetTime).with_ansi(false));
 
-pub struct Logger<N = DefaultFields, F = EventFormatter> {
-    level:  LevelFilter,
-    target: Option<Target>,
-    layer:  Layered<FmtLayer<SpanBroker, N, F, BoxMakeWriter>, SpanBroker>,
-}
-impl Logger {
-    pub fn new_erased<'a>(
-        r: SpanBroker,
-        level: LevelFilter,
-        target: Option<Target>,
-        ids: impl IntoIterator<Item = &'a AppenderId>,
-        appenders: &Appenders,
-        format: EventFormatter,
-    ) -> PolyLayer<SpanBroker> {
-        Box::new(Self::new(
-            r,
-            level,
-            target,
-            ids.into_iter(),
-            appenders,
-            format,
-        ))
-    }
-
-    fn is_enabled(&self, meta: &Metadata<'_>) -> bool {
-        let match_level = meta.level() <= &self.level;
-        let match_target = self
-            .target
-            .as_ref()
-            .map_or(true, |t| meta.target().starts_with(t.as_str()));
-
-        match_level && match_target
-    }
-
-    fn mk_writer<'a>(
-        ids: impl Iterator<Item = &'a AppenderId>,
-        appenders: &Appenders,
-    ) -> Option<BoxMakeWriter> {
-        let mut accumulated_makewriter = None;
-        for id in ids {
-            if let Some(appender) = appenders.get(id).map(ToOwned::to_owned) {
-                accumulated_makewriter = if let Some(acc) = accumulated_makewriter.take() {
-                    Some(BoxMakeWriter::new(MakeWriterExt::and(acc, appender)))
-                } else {
-                    Some(BoxMakeWriter::new(appender))
-                }
-            }
-        }
-        accumulated_makewriter
-    }
-
-    pub fn new<'a>(
-        r: SpanBroker,
-        level: LevelFilter,
-        target: Option<Target>,
-        ids: impl Iterator<Item = &'a AppenderId>,
-        appenders: &Appenders,
-        format: EventFormatter,
-    ) -> Self {
-        let writer =
-            Self::mk_writer(ids, appenders).unwrap_or_else(|| BoxMakeWriter::new(io::sink));
-
-        let fmt_layer = FmtLayer::default().event_format(format).with_ansi(false);
-        let append_layer = fmt_layer.with_writer(writer);
-        let layer = r.with(append_layer);
-
-        Self {
-            level,
-            target,
-            layer,
-        }
-    }
-}
-impl Layer<SpanBroker> for Logger {
-    fn enabled(&self, meta: &Metadata<'_>, _ctx: Context<'_, SpanBroker>) -> bool {
-        Logger::is_enabled(self, meta)
-    }
-
-    fn on_event(&self, event: &Event<'_>, ctx: Context<'_, SpanBroker>) {
-        self.layer.on_event(event, ctx);
-    }
-}
-
 #[derive(Debug)]
 pub enum EventFormatter {
     Normal,
     MessageOnly,
-    Custom(CustomFormatter),
+    Custom(FmtorpFormatter),
 }
 
 impl Default for EventFormatter {
@@ -161,7 +54,7 @@ impl From<ConfigFormat> for EventFormatter {
             ConfigFormat::Normal => Self::Normal,
             ConfigFormat::MessageOnly => Self::MessageOnly,
             ConfigFormat::Custom(s) => {
-                match CustomFormatter::new(s) {
+                match FmtorpFormatter::new(s) {
                     Ok(c) => Self::Custom(c),
                     #[allow(clippy::print_stderr)] // necessary error surfacing
                     Err(e) => {
@@ -177,11 +70,15 @@ impl From<ConfigFormat> for EventFormatter {
     }
 }
 
-impl FormatEvent<SpanBroker, DefaultFields> for EventFormatter {
+impl<Reg, N> FormatEvent<Reg, N> for EventFormatter
+where
+    Reg: Subscriber + for<'a> LookupSpan<'a>,
+    N: for<'w> FormatFields<'w> + 'static,
+{
     fn format_event(
         &self,
-        ctx: &tracing_subscriber::fmt::FmtContext<'_, SpanBroker, DefaultFields>,
-        writer: tracing_subscriber::fmt::format::Writer<'_>,
+        ctx: &FmtContext<'_, Reg, N>,
+        writer: Writer<'_>,
         event: &Event<'_>,
     ) -> std::fmt::Result {
         match self {
@@ -217,11 +114,11 @@ mod fields {
         });
 }
 
-struct CustomValueWriter<'ctx, 'evt> {
-    ctx:   &'ctx FmtContext<'ctx, SpanBroker, DefaultFields>,
+struct CustomValueWriter<'ctx, 'evt, Reg, N> {
+    ctx:   &'ctx FmtContext<'ctx, Reg, N>,
     event: &'evt Event<'evt>,
 }
-impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
+impl<'ctx, 'evt, Broker, N> CustomValueWriter<'ctx, 'evt, Broker, N> {
     fn format_timestamp(mut writer: format::Writer<'_>) -> fmt::Result {
         use tracing_subscriber::fmt::time::OffsetTime;
 
@@ -235,7 +132,11 @@ impl<'ctx, 'evt> CustomValueWriter<'ctx, 'evt> {
         t.format_time(&mut writer)
     }
 }
-impl<'ctx, 'evt> trace4rs_fmtorp::FieldValueWriter for CustomValueWriter<'ctx, 'evt> {
+impl<'ctx, 'evt, Reg, N> FieldValueWriter for CustomValueWriter<'ctx, 'evt, Reg, N>
+where
+    Reg: Subscriber + for<'a> LookupSpan<'a>,
+    N: for<'a> FormatFields<'a> + 'static,
+{
     fn write_value(&self, mut writer: format::Writer<'_>, field: &'static str) -> fmt::Result {
         let normalized_meta = self.event.normalized_metadata();
         let meta = normalized_meta
@@ -259,31 +160,30 @@ impl<'ctx, 'evt> trace4rs_fmtorp::FieldValueWriter for CustomValueWriter<'ctx, '
         Ok(())
     }
 }
+
 /// EAS: Follow strat from `NORMAL_FMT`
-/// move Message only  and this to formatter.rs and utcoffsettime
 #[derive(Debug)]
-pub struct CustomFormatter {
+pub struct FmtorpFormatter {
     fmtr: trace4rs_fmtorp::Fmtr<'static>,
 }
-// SAFETY:
-// `CustomFormatter` is safe to sync
-unsafe impl Sync for CustomFormatter {}
-// SAFETY:
-// `CustomFormatter` is safe to send
-unsafe impl Send for CustomFormatter {}
-impl CustomFormatter {
+
+impl FmtorpFormatter {
     fn new(fmt_str: impl Into<Cow<'static, str>>) -> Result<Self, trace4rs_fmtorp::Error> {
         let fmtr = trace4rs_fmtorp::Fmtr::new(fmt_str, &fields::FIELD_SET)?;
 
         Ok(Self { fmtr })
     }
 
-    fn format_event(
+    fn format_event<'ctx, 'evt, 'w, Reg, N>(
         &self,
-        ctx: &FmtContext<'_, SpanBroker, DefaultFields>,
-        writer: Writer<'_>,
-        event: &Event<'_>,
-    ) -> fmt::Result {
+        ctx: &FmtContext<'ctx, Reg, N>,
+        writer: Writer<'w>,
+        event: &Event<'evt>,
+    ) -> fmt::Result
+    where
+        Reg: Subscriber + for<'a> LookupSpan<'a>,
+        N: for<'a> FormatFields<'a> + 'static,
+    {
         let value_writer = CustomValueWriter { ctx, event };
         self.fmtr.write(writer, &value_writer)
     }
@@ -293,15 +193,11 @@ const MESSAGE_FIELD_NAME: &str = "message";
 
 struct SingleFieldVisitor<'w> {
     newline:    bool,
-    writer:     tracing_subscriber::fmt::format::Writer<'w>,
+    writer:     Writer<'w>,
     field_name: Cow<'static, str>,
 }
 impl<'w> SingleFieldVisitor<'w> {
-    fn new(
-        newline: bool,
-        writer: tracing_subscriber::fmt::format::Writer<'w>,
-        field_name: impl Into<Cow<'static, str>>,
-    ) -> Self {
+    fn new(newline: bool, writer: Writer<'w>, field_name: impl Into<Cow<'static, str>>) -> Self {
         Self {
             newline,
             writer,
@@ -317,14 +213,16 @@ impl<'w> Visit for SingleFieldVisitor<'w> {
         #[allow(unused_must_use, clippy::use_debug)]
         if field.name() == self.field_name {
             if self.newline {
-                writeln!(self.writer, "{:?}", value);
+                writeln!(self.writer, "{value:?}");
             } else {
-                write!(self.writer, "{:?}", value);
+                write!(self.writer, "{value:?}");
             }
         }
     }
 }
 
+/// We go above and beyond to acquire the local utc offset using
+/// the `utc_offset` crate, hence the custom impl.
 struct UtcOffsetTime;
 
 impl FormatTime for UtcOffsetTime {

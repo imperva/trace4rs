@@ -1,19 +1,19 @@
 use tracing::{
     metadata::LevelFilter,
     Event,
+    Subscriber,
 };
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{
     layer::Context,
+    registry::LookupSpan,
     Layer,
+    Registry,
 };
 
 use super::{
-    loggers::{
-        EventFormatter,
-        Logger,
-    },
-    span_broker::SpanBroker,
+    formatter::EventFormatter,
+    logger::Logger,
 };
 use crate::{
     appenders::{
@@ -27,46 +27,59 @@ use crate::{
     error::Result,
 };
 
-pub type PolyLayer<S> = Box<dyn Layer<S> + Send + Sync + 'static>;
-
-pub(crate) struct Layers<S = SpanBroker> {
+pub struct T4Layer<S = Registry> {
     enabled:   bool,
-    default:   PolyLayer<S>,
-    loggers:   Vec<PolyLayer<S>>,
+    default:   Logger<S>,
+    loggers:   Vec<Logger<S>>,
     appenders: Appenders,
 }
 
-impl Layers {
+impl<S> T4Layer<S> {
     /// If the files which are the target of appenders have been moved we
     /// abandon the moved files and remount at the correct path.
     pub fn correct_appender_paths(&self) -> Result<()> {
         self.appenders.correct_paths()
     }
 
+    pub fn appenders(&self) -> &Appenders {
+        &self.appenders
+    }
+
+    /// Disable this subscriber.
+    pub fn disable(&mut self) {
+        self.enabled = false;
+    }
+
+    /// Enable this subscriber.
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
+}
+
+impl<Reg> T4Layer<Reg>
+where
+    Reg: Subscriber + Send + Sync + for<'s> LookupSpan<'s>,
+{
     /// The default `Layers` backed by `broker` (`INFO` and above goes to
     /// stdout).
-    pub fn default(broker: SpanBroker) -> Self {
+    pub fn default() -> Self {
         let stdout_appender = AppenderId("stdout".to_string());
         let appenders =
             Appenders::new(literally::hmap! {stdout_appender.clone() => Appender::new_console()});
-        let default = Logger::new_erased(
-            broker,
+        let default = Logger::new(
             LevelFilter::INFO,
             None,
-            &[stdout_appender],
+            [stdout_appender].iter(),
             &appenders,
             EventFormatter::Normal,
         );
+
         Self::new(default, vec![], appenders)
     }
 
     /// Create a new `Layers` from a default layer and a pre-generated vec of
     /// sub-layers.
-    fn new(
-        default: PolyLayer<SpanBroker>,
-        loggers: Vec<PolyLayer<SpanBroker>>,
-        appenders: Appenders,
-    ) -> Self {
+    fn new(default: Logger<Reg>, loggers: Vec<Logger<Reg>>, appenders: Appenders) -> Self {
         Self {
             enabled: true,
             default,
@@ -79,14 +92,13 @@ impl Layers {
     ///
     /// # Errors
     /// An error may occur while building the appenders.
-    pub fn from_config(broker: SpanBroker, config: &Config) -> Result<Layers> {
+    pub fn from_config(config: &Config) -> Result<Self> {
         let appenders = (&config.appenders).try_into()?;
-        let layers: Vec<PolyLayer<_>> = config
+        let layers: Vec<Logger<_>> = config
             .loggers
             .iter()
             .map(|(targ, lg)| {
-                Logger::new_erased(
-                    broker.clone(),
+                Logger::new(
                     lg.level.into(),
                     Some(targ.clone()),
                     lg.appenders.iter(),
@@ -96,8 +108,7 @@ impl Layers {
             })
             .collect();
 
-        let default = Logger::new_erased(
-            broker,
+        let default = Logger::new(
             config.default.level.into(),
             None,
             config.default.appenders.iter(),
@@ -105,28 +116,15 @@ impl Layers {
             config.default.format.clone().into(),
         );
 
-        Ok(Layers::new(default, layers, appenders))
-    }
-
-    pub fn appenders(&self) -> &Appenders {
-        &self.appenders
+        Ok(T4Layer::new(default, layers, appenders))
     }
 }
 
-impl<S> Layers<S> {
-    /// Disable this subscriber.
-    pub fn disable(&mut self) {
-        self.enabled = false;
-    }
-
-    /// Enable this subscriber.
-    pub fn enable(&mut self) {
-        self.enabled = true;
-    }
-}
-
-impl Layer<SpanBroker> for Layers<SpanBroker> {
-    fn on_event(&self, event: &Event<'_>, ctx: Context<'_, SpanBroker>) {
+impl<S> Layer<S> for T4Layer<S>
+where
+    S: Subscriber + for<'s> LookupSpan<'s>,
+{
+    fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         if !self.enabled {
             return;
         }
