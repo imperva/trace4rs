@@ -1,23 +1,35 @@
 name: Benchmark
 
 on:
-  pull_request_target:
   push:
-    branches:
-      - main
-      - 'feature-**'
+    branches: main
+  pull_request_target:
 
 env:
   CARGO_TERM_COLOR: always
+  BENCHER_PROJECT: trace4rs
+  BENCHER_ADAPTER: rust_criterion
+  BENCHER_TESTBED: ubuntu-latest
 
 jobs:
-  benchmark_with_bencher:
-    name: Track benchmarks with Bencher
+  benchmark_main_with_bencher:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: Track main benchmarks with Bencher
     runs-on: ubuntu-latest
-    env:
-      BENCHER_PROJECT: trace4rs
-      BENCHER_ADAPTER: rust_criterion
-      BENCHER_TESTBED: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: bencherdev/bencher@main
+      - name: Benchmark trace4rs main with Bencher
+        run: |
+          bencher run \
+          --branch main \
+          --token "${{ secrets.BENCHER_API_TOKEN }}" \
+          "cargo bench"
+
+  benchmark_pr_with_bencher:
+    if: github.event_name == 'pull_request_target'
+    name: Track PR benchmarks with Bencher
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
@@ -25,7 +37,7 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           persist-credentials: false
       - uses: bencherdev/bencher@main
-      - name: Benchmark trace4rs with Bencher
+      - name: Benchmark trace4rs PR with Bencher
         run: |
           bencher run \
           --if-branch "${{ github.event.pull_request.head.ref }}" \
