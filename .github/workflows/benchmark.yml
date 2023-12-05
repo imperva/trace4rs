@@ -40,10 +40,10 @@ jobs:
       - name: Benchmark trace4rs PR with Bencher
         run: |
           bencher run \
-          --if-branch "${{ github.event.pull_request.head.ref }}" \
-          --else-if-branch "${{ github.event.pull_request.base.ref }}" \
+          --if-branch '${{ github.event.pull_request.head.ref }}' \
+          --else-if-branch '${{ github.event.pull_request.base.ref }}' \
           --else-if-branch main \
           --err \
-          --github-actions "${{ secrets.GITHUB_TOKEN }}" \
-          --token "${{ secrets.BENCHER_API_TOKEN }}" \
+          --github-actions '${{ secrets.GITHUB_TOKEN }}' \
+          --token '${{ secrets.BENCHER_API_TOKEN }}' \
           "cargo bench"
