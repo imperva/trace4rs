@@ -3,7 +3,6 @@ name: Benchmark
 on:
   push:
     branches: main
-  pull_request_target:
 
 env:
   CARGO_TERM_COLOR: always
@@ -24,26 +23,4 @@ jobs:
           bencher run \
           --branch main \
           --token "${{ secrets.BENCHER_API_TOKEN }}" \
-          "cargo bench"
-
-  benchmark_pr_with_bencher:
-    if: github.event_name == 'pull_request_target'
-    name: Track PR benchmarks with Bencher
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          persist-credentials: false
-      - uses: bencherdev/bencher@main
-      - name: Benchmark trace4rs PR with Bencher
-        run: |
-          bencher run \
-          --if-branch '${{ github.event.pull_request.head.ref }}' \
-          --else-if-branch '${{ github.event.pull_request.base.ref }}' \
-          --else-if-branch main \
-          --err \
-          --github-actions '${{ secrets.GITHUB_TOKEN }}' \
-          --token '${{ secrets.BENCHER_API_TOKEN }}' \
           "cargo bench"
